@@ -17,9 +17,11 @@ before:
 
 builds:
   - id: pgroute66
+    env:
+      - CGO_ENABLED=0
     goos:
-      #- windows
       - linux
+      - windows
       - darwin
     goarch:
       - amd64
@@ -27,10 +29,10 @@ builds:
     ignore:
       - goos: windows
         goarch: arm64
-    main: ./cmd/pgroute66/
+    main: ./cmd/pgroute66
     binary: pgroute66
     ldflags:
-      - -s -w -X "internal.version.appVersion={{.Version}}"
+      - -s -w -X "internal.appVersion={{.Version}}"
 
 archives:
   - format: tar.gz

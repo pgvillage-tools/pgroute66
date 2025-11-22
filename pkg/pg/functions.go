@@ -6,8 +6,8 @@ import (
 )
 
 // identifierNameSql returns the object name ready to be used in a sql query as an object name (e.a. Select * from %s).
-func identifierNameSql(objectName string) (escaped string) {
-	return fmt.Sprintf("\"%s\"", strings.Replace(objectName, "\"", "\"\"", -1))
+func identifierNameSQL(objectName string) (escaped string) {
+	return fmt.Sprintf("\"%s\"", strings.ReplaceAll(objectName, "\"", "\"\""))
 }
 
 // stringValueSql uses proper quoting for values in SQL queries.
@@ -17,5 +17,5 @@ func identifierNameSql(objectName string) (escaped string) {
 
 // connectStringValue uses proper quoting for connect string values.
 func connectStringValue(objectName string) (escaped string) {
-	return fmt.Sprintf("'%s'", strings.Replace(objectName, "'", "\\'", -1))
+	return fmt.Sprintf("'%s'", strings.ReplaceAll(objectName, "'", "\\'"))
 }

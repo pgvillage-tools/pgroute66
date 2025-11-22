@@ -17,7 +17,7 @@ type AvcDurationExceededError struct {
 }
 
 func fullTableName() string {
-	return fmt.Sprintf("%s.%s", identifierNameSql(AvcSchema), identifierNameSql(AvcTable))
+	return fmt.Sprintf("%s.%s", identifierNameSQL(AvcSchema), identifierNameSQL(AvcTable))
 }
 
 func (der AvcDurationExceededError) Error() string {
@@ -52,7 +52,7 @@ func (c *Conn) AvcCreateTable(ctx context.Context) error {
 	}
 
 	if _, err := c.runQueryExec(ctx, fmt.Sprintf("create table %s (%s timestamp)",
-		fullTableName(), identifierNameSql(AvcColumn))); err != nil {
+		fullTableName(), identifierNameSQL(AvcColumn))); err != nil {
 		return fmt.Errorf("failed to create table %s", fullTableName())
 	}
 
@@ -66,7 +66,7 @@ func (c *Conn) AvcCreateTable(ctx context.Context) error {
 }
 
 func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
-	fullColName := identifierNameSql(AvcColumn)
+	fullColName := identifierNameSQL(AvcColumn)
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
 		c.logger.Errorf("failed to check if table %s exists: %e", fullTableName(), err)
@@ -105,7 +105,7 @@ func (c *Conn) AvUpdateDuration(ctx context.Context) error {
 	} else if err = c.AvcCreateTable(ctx); err != nil {
 		return err
 	} else if affected, err = c.runQueryExec(ctx, fmt.Sprintf("update %s set %s = now()",
-		fullTableName(), identifierNameSql(AvcColumn))); err != nil {
+		fullTableName(), identifierNameSQL(AvcColumn))); err != nil {
 		return err
 	} else if affected != 1 {
 		return fmt.Errorf("unexpecetedly updated %d rows instead of 1 for %s", affected, fullTableName())
