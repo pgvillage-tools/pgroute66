@@ -14,11 +14,11 @@ import (
 )
 
 const (
-	GHStatusInvalid     = "invalid"
-	GHStatusOk          = "ok"
-	GHStatusPrimary     = "primary"
-	GHStatusStandby     = "standby"
-	GHStatusUnavailable = "unavailable"
+	ghStatusInvalid     = "invalid"
+	ghStatusOk          = "ok"
+	ghStatusPrimary     = "primary"
+	ghStatusStandby     = "standby"
+	ghStatusUnavailable = "unavailable"
 )
 
 const (
@@ -26,6 +26,7 @@ const (
 	pgrCreateMode = 0o644
 )
 
+// PgRouteHandler handles all PostgreSQL connections for a route
 type PgRouteHandler struct {
 	log         *zap.SugaredLogger
 	atom        zap.AtomicLevel
@@ -41,17 +42,16 @@ Also see https://github.com/gothinkster/golang-gin-realworld-example-app/issues/
 //nolint
 var globalHandler *PgRouteHandler
 
-func Initialize() {
-	if globalHandler == nil {
-		globalHandler = NewPgRouteHandler()
-	}
+func init() {
+	globalHandler = NewPgRouteHandler()
 }
 
+// NewPgRouteHandler returns a PgRouteHandler
 func NewPgRouteHandler() *PgRouteHandler {
 	var err error
 
 	prh := PgRouteHandler{
-		connections: make(map[string]*pg.Conn),
+		connections: map[string]*pg.Conn{},
 	}
 
 	prh.config, err = NewConfig()
@@ -81,6 +81,7 @@ func NewPgRouteHandler() *PgRouteHandler {
 	return &prh
 }
 
+// GetStandbys connects all PostgreSQL servers and returns a list of all that are standby
 func (prh PgRouteHandler) GetStandbys(group string) (standbys []string) {
 	for name, conn := range prh.connections.FilteredConnections(prh.config.GroupHosts(group)) {
 		isStandby, err := conn.IsStandby(context.Background())
@@ -98,6 +99,7 @@ func (prh PgRouteHandler) GetStandbys(group string) (standbys []string) {
 	return standbys
 }
 
+// GetPrimaries connects all PostgreSQL servers and returns a list of all that are primary
 func (prh PgRouteHandler) GetPrimaries(group string) (primaries []string) {
 	for name, conn := range prh.connections.FilteredConnections(prh.config.GroupHosts(group)) {
 		isPrimary, err := conn.IsPrimary(context.Background())
@@ -115,23 +117,24 @@ func (prh PgRouteHandler) GetPrimaries(group string) (primaries []string) {
 	return primaries
 }
 
+// GetNodeStatus returns a status for a node
 func (prh PgRouteHandler) GetNodeStatus(name string) string {
 	if node, exists := prh.connections[name]; exists {
 		isPrimary, err := node.IsPrimary(context.Background())
 		if err != nil {
 			prh.log.Debugf("Could not get state of node %s, %s", name, err.Error())
 
-			return GHStatusUnavailable
+			return ghStatusUnavailable
 		} else if isPrimary {
-			return GHStatusPrimary
-		} else {
-			return GHStatusStandby
+			return ghStatusPrimary
 		}
+		return ghStatusStandby
 	}
 
-	return GHStatusInvalid
+	return ghStatusInvalid
 }
 
+// UpdateNodeAvailability on the primary
 func (prh PgRouteHandler) UpdateNodeAvailability() {
 	for nodeName, conn := range prh.connections {
 		if isPrimary, err := conn.IsPrimary(context.Background()); err != nil {
@@ -140,7 +143,6 @@ func (prh PgRouteHandler) UpdateNodeAvailability() {
 			continue
 		} else if err = conn.AvUpdateDuration(context.Background()); err != nil {
 			prh.log.Errorf("failed to update availability info on node %s: %e", nodeName, err)
-
 			return
 		} else {
 			prh.log.Infof("updating availability info on node %s", nodeName)
@@ -150,6 +152,7 @@ func (prh PgRouteHandler) UpdateNodeAvailability() {
 	}
 }
 
+// CreateAvailabilityTable creates the AVC table
 func (prh PgRouteHandler) CreateAvailabilityTable() {
 	for nodeName, conn := range prh.connections {
 		if isPrimary, err := conn.IsPrimary(context.Background()); err != nil {
@@ -168,27 +171,26 @@ func (prh PgRouteHandler) CreateAvailabilityTable() {
 	}
 }
 
+// GetNodeAvailability returns the state of one node
 func (prh PgRouteHandler) GetNodeAvailability(name string, limit float64) string {
 	prh.CreateAvailabilityTable()
 	defer prh.UpdateNodeAvailability()
 
 	if node, exists := prh.connections[name]; exists {
-		if err := node.AvCheckDuration(context.Background(), limit); err == nil {
+		err := node.AvCheckDuration(context.Background(), limit)
+		if err == nil {
 			prh.log.Infof("availability of node %s is within limits", name)
 
-			return GHStatusOk
-		} else if aErr, ok := err.(pg.AvcDurationExceededError); !ok {
-			prh.log.Errorf("unexpeced error occurred while retrieving availability of %s: %e", name, err)
-
-			return err.Error()
-		} else {
+			return ghStatusOk
+		} else if aErr, ok := err.(pg.AvcDurationExceededError); ok {
 			prh.log.Infof("Availability limit exceeded for %s: %e", name, aErr)
-
 			return fmt.Sprintf("exceeded (%s)", aErr.String())
 		}
+		prh.log.Errorf("unexpeced error occurred while retrieving availability of %s: %e", name, err)
+		return err.Error()
 	}
 
-	return GHStatusInvalid
+	return ghStatusInvalid
 }
 
 func (prh *PgRouteHandler) initLogger(logFilePath string) {

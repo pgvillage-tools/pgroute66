@@ -21,6 +21,7 @@ const (
 	debugLoglevel   = "debug"
 )
 
+// RouteConfig defines all config for the api
 type RouteConfig struct {
 	Hosts    RouteHostsConfig `yaml:"hosts"`
 	Groups   RouteHostGroups  `yaml:"groups"`
@@ -31,6 +32,7 @@ type RouteConfig struct {
 	LogFile  string           `yaml:"logfile"`
 }
 
+// NewConfig initializes and returns a route config
 func NewConfig() (config RouteConfig, err error) {
 	var debug bool
 
@@ -89,15 +91,16 @@ func (rc RouteConfig) GroupHosts(groupName string) RouteHostGroup {
 		return rhg
 	}
 
-	if groupHosts, ok := rc.Groups[groupName]; !ok {
+	groupHosts, ok := rc.Groups[groupName]
+	if !ok {
 		globalHandler.log.Errorf("hostgroup %s is not defined", groupName)
 
 		return RouteHostGroup{}
-	} else {
-		return groupHosts
 	}
+	return groupHosts
 }
 
+// BindTo returns the string of the host/port to bind to
 func (rc RouteConfig) BindTo() string {
 	port := rc.Port
 	if port == 0 {
@@ -115,6 +118,7 @@ func (rc RouteConfig) BindTo() string {
 	return fmt.Sprintf("%s:%d", rc.Bind, port)
 }
 
+// Debug returns the debug level of this route
 func (rc RouteConfig) Debug() bool {
 	return rc.LogLevel == debugLoglevel
 }

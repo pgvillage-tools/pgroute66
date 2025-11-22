@@ -1,3 +1,4 @@
+// Package pg is the library with all PostgreSQL specific code
 package pg
 
 import (
@@ -6,11 +7,15 @@ import (
 )
 
 const (
+	// AvcSchema is the schema to store the Availability Checker table
 	AvcSchema = "public"
-	AvcTable  = "pgr66_avc"
+	// AvcTable is the table to store the Availability Checker record
+	AvcTable = "pgr66_avc"
+	// AvcColumn is the column to store the Availability Checker data
 	AvcColumn = "pgr66_avc"
 )
 
+// AvcDurationExceededError is raised when AV check duration is expired
 type AvcDurationExceededError struct {
 	max      float64
 	actually float64
@@ -35,11 +40,11 @@ func (c *Conn) avcTableExists(ctx context.Context) (bool, error) {
 		return false, fmt.Errorf("failed to check for table %s", fullTableName())
 	} else if exists {
 		return true, nil
-	} else {
-		return false, nil
 	}
+	return false, nil
 }
 
+// AvcCreateTable is a query builder for the create statement of the AVC table
 func (c *Conn) AvcCreateTable(ctx context.Context) error {
 	c.logger.Infof("Creating table")
 
@@ -77,22 +82,22 @@ func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
 	}
 
 	qry := fmt.Sprintf("select extract('epoch' from (now()-%s)) duration from %s", fullColName, fullTableName())
-
+	var mSec float64
+	var mSecOk bool
 	if result, err := c.GetRows(ctx, qry); err != nil {
 		c.logger.Errorf("failed to retrieve duration from postgres: %e", err)
-
 		return 0, err
 	} else if len(result) != 1 {
 		return 0, fmt.Errorf("unexpected result while checking for duration (%d != 1)", len(result))
 	} else if value, valueOk := result[0]["duration"]; !valueOk {
 		return 0, fmt.Errorf("unexpected result while checking for duration (%d != 1)", len(result))
-	} else if mSec, mSecOk := value.(float64); !mSecOk {
+	} else if mSec, mSecOk = value.(float64); !mSecOk {
 		return 0, fmt.Errorf("unexpected result type checking for duration (%T != float64)", value)
-	} else {
-		return mSec, nil
 	}
+	return mSec, nil
 }
 
+// AvUpdateDuration can update the AVC column
 func (c *Conn) AvUpdateDuration(ctx context.Context) error {
 	var affected int64
 
@@ -114,7 +119,8 @@ func (c *Conn) AvUpdateDuration(ctx context.Context) error {
 	return nil
 }
 
-func (c *Conn) AvCheckDuration(ctx context.Context, max float64) error {
+// AvCheckDuration will query PostgreSQL to check availability
+func (c *Conn) AvCheckDuration(ctx context.Context, maxDuration float64) error {
 	var (
 		err   error
 		since float64
@@ -124,9 +130,9 @@ func (c *Conn) AvCheckDuration(ctx context.Context, max float64) error {
 		return err
 	} else if since < 0 {
 		return fmt.Errorf("table %s does not exist", fullTableName())
-	} else if since > max {
+	} else if since > maxDuration {
 		return AvcDurationExceededError{
-			max:      max,
+			max:      maxDuration,
 			actually: since,
 		}
 	}

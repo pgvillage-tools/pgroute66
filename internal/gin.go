@@ -1,3 +1,4 @@
+// Package internal holds all unexported code
 package internal
 
 import (
@@ -10,12 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RunAPI will run the gin webserver
 func RunAPI() {
 	var err error
 
 	var cert tls.Certificate
-
-	Initialize()
 
 	if !globalHandler.config.Debug() {
 		gin.SetMode(gin.ReleaseMode)
@@ -82,11 +82,11 @@ func getStatus(c *gin.Context) {
 
 	status := globalHandler.GetNodeStatus(id)
 	switch status {
-	case GHStatusPrimary, GHStatusStandby:
+	case ghStatusPrimary, ghStatusStandby:
 		c.IndentedJSON(http.StatusOK, status)
-	case GHStatusInvalid:
+	case ghStatusInvalid:
 		c.IndentedJSON(http.StatusNotFound, status)
-	case GHStatusUnavailable:
+	case ghStatusUnavailable:
 		c.IndentedJSON(http.StatusUnprocessableEntity, status)
 	}
 }
@@ -105,7 +105,7 @@ func getAvailability(c *gin.Context) {
 	}
 
 	status := globalHandler.GetNodeAvailability(id, limit)
-	if status == GHStatusOk {
+	if status == ghStatusOk {
 		c.IndentedJSON(http.StatusOK, status)
 	} else if strings.HasPrefix(status, "exceeded") {
 		c.IndentedJSON(http.StatusRequestTimeout, status)
