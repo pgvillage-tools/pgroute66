@@ -102,7 +102,7 @@ func getAvailability(c *gin.Context) {
 
 	if value := c.DefaultQuery("limit", "10"); value == "" {
 		limit = -1
-	} else if limit, err = strconv.ParseFloat(value, 32); err != nil {
+	} else if limit, err = strconv.ParseFloat(value, bitSize32); err != nil {
 		globalHandler.log.Errorf("invalid value for limit (%s is not an int32)", value)
 	}
 

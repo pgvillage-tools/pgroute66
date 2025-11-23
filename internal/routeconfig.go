@@ -105,9 +105,9 @@ func (rc RouteConfig) BindTo() string {
 	port := rc.Port
 	if port == 0 {
 		if rc.Ssl.Enabled() {
-			port = 8443
+			port = defaultSSLPort
 		} else {
-			port = 8080
+			port = defaultNoSSLPort
 		}
 	}
 

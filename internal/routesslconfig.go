@@ -2,7 +2,7 @@ package internal
 
 import (
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"log"
 )
 
@@ -23,7 +23,7 @@ func (rsc RouteSSLConfig) Enabled() bool {
 // KeyBytes returns the bytes version of this key
 func (rsc RouteSSLConfig) KeyBytes() ([]byte, error) {
 	if !rsc.Enabled() {
-		return nil, fmt.Errorf("cannot get CertBytes when SSL is not enabled")
+		return nil, errors.New("cannot get CertBytes when SSL is not enabled")
 	}
 
 	return base64.StdEncoding.DecodeString(rsc.Key)
@@ -42,7 +42,7 @@ func (rsc RouteSSLConfig) MustKeyBytes() []byte {
 // CertBytes returns the bytes value of this cert
 func (rsc RouteSSLConfig) CertBytes() ([]byte, error) {
 	if !rsc.Enabled() {
-		return nil, fmt.Errorf("cannot get CertBytes when SSL is not enabled")
+		return nil, errors.New("cannot get CertBytes when SSL is not enabled")
 	}
 
 	return base64.StdEncoding.DecodeString(rsc.Cert)
