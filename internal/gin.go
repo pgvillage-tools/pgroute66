@@ -1,3 +1,4 @@
+// Package internal holds all unexported code
 package internal
 
 import (
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// RunAPI will run the gin webserver
 func RunAPI() {
 	var err error
 
@@ -82,11 +84,11 @@ func getStatus(c *gin.Context) {
 
 	status := globalHandler.GetNodeStatus(id)
 	switch status {
-	case GHStatusPrimary, GHStatusStandby:
+	case ghStatusPrimary, ghStatusStandby:
 		c.IndentedJSON(http.StatusOK, status)
-	case GHStatusInvalid:
+	case ghStatusInvalid:
 		c.IndentedJSON(http.StatusNotFound, status)
-	case GHStatusUnavailable:
+	case ghStatusUnavailable:
 		c.IndentedJSON(http.StatusUnprocessableEntity, status)
 	}
 }
@@ -100,12 +102,12 @@ func getAvailability(c *gin.Context) {
 
 	if value := c.DefaultQuery("limit", "10"); value == "" {
 		limit = -1
-	} else if limit, err = strconv.ParseFloat(value, 32); err != nil {
+	} else if limit, err = strconv.ParseFloat(value, bitSize32); err != nil {
 		globalHandler.log.Errorf("invalid value for limit (%s is not an int32)", value)
 	}
 
 	status := globalHandler.GetNodeAvailability(id, limit)
-	if status == GHStatusOk {
+	if status == ghStatusOk {
 		c.IndentedJSON(http.StatusOK, status)
 	} else if strings.HasPrefix(status, "exceeded") {
 		c.IndentedJSON(http.StatusRequestTimeout, status)

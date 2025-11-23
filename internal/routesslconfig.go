@@ -2,35 +2,34 @@ package internal
 
 import (
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"log"
 )
 
-/*
- * This module reads the config file and returns a config object with all entries from the config yaml file.
- */
-
+// RouteSSLConfig is a combination of an SSL cert and a key
 type RouteSSLConfig struct {
 	Cert string `yaml:"b64cert"`
 	Key  string `yaml:"b64key"`
 }
 
+// Enabled returns wether this config is enabled (both cert and key are defined)
 func (rsc RouteSSLConfig) Enabled() bool {
 	if rsc.Cert != "" && rsc.Key != "" {
 		return true
 	}
-
 	return false
 }
 
+// KeyBytes returns the bytes version of this key
 func (rsc RouteSSLConfig) KeyBytes() ([]byte, error) {
 	if !rsc.Enabled() {
-		return nil, fmt.Errorf("cannot get CertBytes when SSL is not enabled")
+		return nil, errors.New("cannot get CertBytes when SSL is not enabled")
 	}
 
 	return base64.StdEncoding.DecodeString(rsc.Key)
 }
 
+// MustKeyBytes returns the bytes value of this key, or logs a fatal message
 func (rsc RouteSSLConfig) MustKeyBytes() []byte {
 	kb, err := rsc.KeyBytes()
 	if err != nil {
@@ -40,14 +39,16 @@ func (rsc RouteSSLConfig) MustKeyBytes() []byte {
 	return kb
 }
 
+// CertBytes returns the bytes value of this cert
 func (rsc RouteSSLConfig) CertBytes() ([]byte, error) {
 	if !rsc.Enabled() {
-		return nil, fmt.Errorf("cannot get CertBytes when SSL is not enabled")
+		return nil, errors.New("cannot get CertBytes when SSL is not enabled")
 	}
 
 	return base64.StdEncoding.DecodeString(rsc.Cert)
 }
 
+// MustCertBytes returns the bytes value of this cert, or logs a fatal message
 func (rsc RouteSSLConfig) MustCertBytes() []byte {
 	cb, err := rsc.CertBytes()
 	if err != nil {

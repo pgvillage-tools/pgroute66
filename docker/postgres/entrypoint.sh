@@ -20,16 +20,12 @@ function primary() {
     mkdir "${PGDATA}/conf.d"
     echo "include_dir 'conf.d'" >> "${PGDATA}/postgresql.conf"
     echo "listen_addresses = '*'" >> "${PGDATA}/conf.d/listen_address.conf"
-    while read IP
+    while read -r IP
     do
       echo "
 host    all             postgres        ${IP}               md5
 host    replication     postgres        ${IP}               md5" >> "${PGDATA}/pg_hba.conf"
 
-      re="^([0-9.]+)(.*)$"
-      if [[ $IP =~ $re ]]; then
-        [ -n ${BASH_REMATCH[1]} -a ${BASH_REMATCH[1]} != '127.0.0.1' ] && MYIP=${BASH_REMATCH[1]}
-      fi
     done <<< "$(ip a | sed -n '/inet /{s/.*inet //;s/ .*//;p}')"
   fi
 }
@@ -37,7 +33,7 @@ host    replication     postgres        ${IP}               md5" >> "${PGDATA}/p
 function standby() {
   PGVERSION=${PGVERSION:-12}
   export PGTARGETSESSIONATTRS=read-write
-  export PGHOST=${PGHOSTS}
+  export PGHOST="${PGHOSTS:-localhost}"
   if [ ! -e "${PGDATA}" ]; then
     mkdir -p "${PGDATA}"
     chown postgres: "${PGDATA}"
@@ -67,7 +63,7 @@ function pg_promote() {
 
 function waitsleep() {
   SLEEPTIME=${SLEEPTIME:-10}
-  while /bin/sleep ${SLEEPTIME}; do
+  while /bin/sleep "${SLEEPTIME}"; do
     echo "$(date "+%Y-%m-%d %H:%M:%S") sleep ${SLEEPTIME}"
   done
 }
@@ -81,7 +77,7 @@ case "${1}" in
     ;;
   rebuild)
     pg_stop_bg
-    rm -rf "${PGDATA}"/*
+    rm -rf "${PGDATA:?}"/*
     standby
     pg_start_bg
     ;;
