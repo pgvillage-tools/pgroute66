@@ -3,14 +3,13 @@ package pg
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgx"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"go.uber.org/zap"
 )
 
 // Conn objects can connect to PostgreSQL and verify state
@@ -18,34 +17,38 @@ type Conn struct {
 	connParams Dsn
 	endpoint   string
 	conn       *pgxpool.Pool
-	logger     *zap.SugaredLogger
+	overrides  Overrides
+}
+
+// Override is a mocking option for a Conn
+func (c *Conn) Override(overrides Overrides) {
+	c.overrides = overrides
 }
 
 // NewConn can create a Conn object
-func NewConn(connParams Dsn, logger *zap.SugaredLogger) (c *Conn) {
+func NewConn(connParams Dsn) (c *Conn) {
 	c = &Conn{
 		connParams: connParams,
-		logger:     logger,
 	}
 	c.endpoint = fmt.Sprintf("%s:%s", c.Host(), c.Port())
 
 	return c
 }
 
-// DSN returns a string value of the COnnection Parameters
+// DSN returns a string value of the Connection Parameters
 func (c *Conn) DSN() (dsn string) {
 	pairs := make([]string, 0, len(c.connParams))
 	for key, value := range c.connParams {
 		pairs = append(pairs, fmt.Sprintf("%s=%s", key, connectStringValue(value)))
 	}
-
+	slices.Sort(pairs)
 	return strings.Join(pairs[:], " ")
 }
 
 // Host returns the host parameter from the Connection Parameters
 func (c *Conn) Host() string {
 	value, ok := c.connParams["host"]
-	if ok {
+	if ok && value != "" {
 		return value
 	}
 
@@ -60,7 +63,7 @@ func (c *Conn) Host() string {
 // Port returns the port parameter from the Connection Parameters
 func (c *Conn) Port() string {
 	value, ok := c.connParams["port"]
-	if ok {
+	if ok && value != "" {
 		return value
 	}
 
@@ -74,21 +77,19 @@ func (c *Conn) Port() string {
 
 // Connect can be used to actually connect the connection
 func (c *Conn) Connect(ctx context.Context) (err error) {
-	if c.conn != nil {
+	if len(c.overrides) > 0 || c.conn != nil {
 		return nil
 	}
-
-	c.logger.Debugf("Connecting to %s (%v)", c.endpoint, c.DSN())
+	logger.Debug().Msgf("Connecting to %s (%v)", c.endpoint, c.DSN())
 
 	poolConfig, err := pgxpool.ParseConfig(c.DSN())
 	if err != nil {
-		log.Panicf("Unable to parse DSN (%s): %e", c.DSN(), err)
+		logger.Panic().Msgf("Unable to parse DSN (%s): %e", c.DSN(), err)
 	}
 
 	c.conn, err = pgxpool.ConnectConfig(ctx, poolConfig)
 	if err != nil {
 		c.conn = nil
-
 		return err
 	}
 
@@ -96,7 +97,12 @@ func (c *Conn) Connect(ctx context.Context) (err error) {
 }
 
 func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (affected int64, err error) {
-	c.logger.Debugf("Running query `%s` on %s", query, c.endpoint)
+	if len(c.overrides) > 0 {
+		logger.Debug().Msgf("Mocking query `%s` on %s", query, c.endpoint)
+		override := c.overrides.GetOverride(OverrideKey{Query: query, Args: args})
+		return override.affected, override.err
+	}
+	logger.Debug().Msgf("Running query `%s` on %s", query, c.endpoint)
 
 	var ct pgconn.CommandTag
 
@@ -109,7 +115,12 @@ func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (aff
 }
 
 func (c *Conn) runQueryExists(ctx context.Context, query string, args ...any) (exists bool, err error) {
-	c.logger.Debugf("Running query `%s` on %s", query, c.endpoint)
+	if len(c.overrides) > 0 {
+		logger.Debug().Msgf("Mocking query `%s` on %s", query, c.endpoint)
+		override := c.overrides.GetOverride(OverrideKey{Query: query, Args: args})
+		return len(override.rows) > 0, override.err
+	}
+	logger.Debug().Msgf("Running query `%s` on %s", query, c.endpoint)
 
 	err = c.Connect(ctx)
 	if err != nil {
@@ -120,10 +131,10 @@ func (c *Conn) runQueryExists(ctx context.Context, query string, args ...any) (e
 	err = c.conn.QueryRow(ctx, query, args...).Scan(&answer)
 
 	if err == nil {
-		c.logger.Debugf("Query `%s` returns rows for %s", query, c.endpoint)
+		logger.Debug().Msgf("Query `%s` returns rows for %s", query, c.endpoint)
 		return true, nil
 	} else if err.Error() == pgx.ErrNoRows.Error() {
-		c.logger.Debugf("Query `%s` returns no rows for %s", query, c.endpoint)
+		logger.Debug().Msgf("Query `%s` returns no rows for %s", query, c.endpoint)
 		return false, nil
 	}
 	return false, err
@@ -134,12 +145,17 @@ func (c *Conn) GetRows(
 	ctx context.Context,
 	query string,
 	args ...any,
-) ([]map[string]any, error) {
+) (Result, error) {
+	if len(c.overrides) > 0 {
+		logger.Debug().Msgf("Mocking query `%s` on %s", query, c.endpoint)
+		override := c.overrides.GetOverride(OverrideKey{Query: query, Args: args})
+		return override.rows, override.err
+	}
 	if err := c.Connect(ctx); err != nil {
 		return nil, err
 	}
 
-	c.logger.Debugf("Running SQL: %s with args %v", query, args)
+	logger.Debug().Msgf("Running SQL: %s with args %v", query, args)
 	result, err := c.conn.Query(ctx, query, args...)
 
 	if err != nil {
@@ -155,7 +171,7 @@ func (c *Conn) GetRows(
 		hdr[i] = string(col.Name)
 	}
 
-	var answer []map[string]any
+	var answer Result
 
 	for result.Next() {
 		row := map[string]any{}
