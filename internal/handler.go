@@ -42,7 +42,8 @@ Also see https://github.com/gothinkster/golang-gin-realworld-example-app/issues/
 //nolint
 var globalHandler *PgRouteHandler
 
-func init() {
+// Initialize this module
+func Initialize() {
 	globalHandler = NewPgRouteHandler()
 }
 

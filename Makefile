@@ -1,3 +1,9 @@
+ifeq (,$(shell go env GOBIN))
+GOBIN=$(shell go env GOPATH)/bin
+else
+GOBIN=$(shell go env GOBIN)
+endif
+
 build:
 	go mod tidy
 	go build ./cmd/pgroute66
@@ -37,4 +43,4 @@ install-go-test-coverage:
 .PHONY: check-coverage
 check-coverage: install-go-test-coverage
 	go test $$(go list ./... | grep -v /e2e) -coverprofile=./cover.out -covermode=atomic -coverpkg=./...
-	${GOBIN}/go-test-coverage --config=./.testcoverage.yml
+	${GOBIN}/go-test-coverage --config=./.testcoverage.yaml

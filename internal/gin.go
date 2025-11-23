@@ -17,6 +17,8 @@ func RunAPI() {
 
 	var cert tls.Certificate
 
+	Initialize()
+
 	if !globalHandler.config.Debug() {
 		gin.SetMode(gin.ReleaseMode)
 	}
