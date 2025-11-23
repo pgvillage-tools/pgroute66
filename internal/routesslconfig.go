@@ -3,7 +3,6 @@ package internal
 import (
 	"encoding/base64"
 	"errors"
-	"log"
 )
 
 // RouteSSLConfig is a combination of an SSL cert and a key
@@ -33,7 +32,7 @@ func (rsc RouteSSLConfig) KeyBytes() ([]byte, error) {
 func (rsc RouteSSLConfig) MustKeyBytes() []byte {
 	kb, err := rsc.KeyBytes()
 	if err != nil {
-		globalHandler.log.Fatal("could not decrypt SSL key", err)
+		logger.Panic().Msgf("could not decrypt SSL key: %v", err)
 	}
 
 	return kb
@@ -52,7 +51,7 @@ func (rsc RouteSSLConfig) CertBytes() ([]byte, error) {
 func (rsc RouteSSLConfig) MustCertBytes() []byte {
 	cb, err := rsc.CertBytes()
 	if err != nil {
-		log.Fatal("could not decrypt SSL Cert", err)
+		logger.Panic().Msgf("could not decrypt SSL Cert: %v", err)
 	}
 
 	return cb
