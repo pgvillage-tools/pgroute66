@@ -13,7 +13,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
@@ -60,7 +60,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
@@ -110,7 +110,7 @@ jobs:
         pgversion: ['13', '14', '15', '16', '17']
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # https://github.com/docker/setup-qemu-action
       - name: Set up QEMU
