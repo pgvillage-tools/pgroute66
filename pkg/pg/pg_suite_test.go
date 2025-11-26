@@ -1,4 +1,4 @@
-package internal
+package pg
 
 import (
 	"bytes"
@@ -16,5 +16,5 @@ func TestInternal(t *testing.T) {
 	logger = zerolog.New(testLogBuffer).
 		With().Timestamp().Logger().Level(zerolog.PanicLevel)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Internal Suite")
+	RunSpecs(t, "Pg Suite")
 }

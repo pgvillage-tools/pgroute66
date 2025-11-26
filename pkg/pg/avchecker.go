@@ -46,10 +46,10 @@ func (c *Conn) avcTableExists(ctx context.Context) (bool, error) {
 
 // AvcCreateTable is a query builder for the create statement of the AVC table
 func (c *Conn) AvcCreateTable(ctx context.Context) error {
-	c.logger.Infof("Creating table")
+	logger.Info().Msgf("Creating table")
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
-		c.logger.Errorf("failed to check if table %s exists: %e", fullTableName(), err)
+		logger.Error().Msgf("failed to check if table %s exists: %e", fullTableName(), err)
 
 		return err
 	} else if exists {
@@ -74,7 +74,7 @@ func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
 	fullColName := identifierNameSQL(AvcColumn)
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
-		c.logger.Errorf("failed to check if table %s exists: %e", fullTableName(), err)
+		logger.Error().Msgf("failed to check if table %s exists: %e", fullTableName(), err)
 
 		return 0, err
 	} else if !exists {
@@ -85,7 +85,7 @@ func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
 	var mSec float64
 	var mSecOk bool
 	if result, err := c.GetRows(ctx, qry); err != nil {
-		c.logger.Errorf("failed to retrieve duration from postgres: %e", err)
+		logger.Error().Msgf("failed to retrieve duration from postgres: %e", err)
 		return 0, err
 	} else if len(result) != 1 {
 		return 0, fmt.Errorf("unexpected result while checking for duration (%d != 1)", len(result))
@@ -104,7 +104,7 @@ func (c *Conn) AvUpdateDuration(ctx context.Context) error {
 	if isPrimary, err := c.IsPrimary(ctx); err != nil {
 		return err
 	} else if !isPrimary {
-		c.logger.Infof("skipping update of %s on a standby database server", fullTableName())
+		logger.Info().Msgf("skipping update of %s on a standby database server", fullTableName())
 
 		return nil
 	} else if err = c.AvcCreateTable(ctx); err != nil {

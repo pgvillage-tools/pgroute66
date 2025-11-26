@@ -3,115 +3,114 @@ package internal
 
 import (
 	"crypto/tls"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog/log"
 )
 
 // RunAPI will run the gin webserver
-func RunAPI() {
+func (h PgRouteHandler) RunAPI() {
 	var err error
 
 	var cert tls.Certificate
 
-	Initialize()
-
-	if !globalHandler.config.Debug() {
+	if !h.config.Debug() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
 	router := gin.Default()
-	router.GET("/v1/primary", getPrimary)
-	router.GET("/v1/primaries", getPrimaries)
-	router.GET("/v1/standbys", getStandbys)
-	router.GET("/v1/:id/status", getStatus)
-	router.GET("/v1/:id/availability", getAvailability)
+	router.GET("/v1/primary", func(ctx *gin.Context) { getPrimary(ctx, h) })
+	router.GET("/v1/primaries", func(ctx *gin.Context) { getPrimaries(ctx, h) })
+	router.GET("/v1/standbys", func(ctx *gin.Context) { getStandbys(ctx, h) })
+	router.GET("/v1/:id/status", func(ctx *gin.Context) { getStatus(ctx, h) })
+	router.GET("/v1/:id/availability", func(ctx *gin.Context) { getAvailability(ctx, h) })
 
-	globalHandler.log.Debugf("Running on %s", globalHandler.config.BindTo())
+	logger.Debug().Msgf("Running on %s", h.config.BindTo())
 
-	if globalHandler.config.Ssl.Enabled() {
-		globalHandler.log.Debug("Running with SSL")
+	if h.config.Ssl.Enabled() {
+		logger.Debug().Msg("Running with SSL")
 
-		cert, err = tls.X509KeyPair(globalHandler.config.Ssl.MustCertBytes(), globalHandler.config.Ssl.MustKeyBytes())
+		cert, err = tls.X509KeyPair(h.config.Ssl.MustCertBytes(), h.config.Ssl.MustKeyBytes())
 		if err != nil {
-			globalHandler.log.Fatal("Error parsing cert and key", err)
+			logger.Fatal().Msgf("Error parsing cert and key: %v", err)
 		}
 
 		tlsConfig := tls.Config{
 			MinVersion:   tls.VersionTLS12,
 			Certificates: []tls.Certificate{cert},
 		}
-		server := http.Server{Addr: globalHandler.config.BindTo(), Handler: router, TLSConfig: &tlsConfig}
+		server := http.Server{Addr: h.config.BindTo(), Handler: router, TLSConfig: &tlsConfig}
 		err = server.ListenAndServeTLS("", "")
 	} else {
-		globalHandler.log.Debug("Running without SSL")
-		err = router.Run(globalHandler.config.BindTo())
+		logger.Debug().Msg("Running without SSL")
+		err = router.Run(h.config.BindTo())
 	}
 
 	if err != nil {
-		log.Panicf("Error running API: %s", err.Error())
+		logger.Panic().Msgf("Error running API: %s", err.Error())
 	}
 }
 
-func getPrimary(c *gin.Context) {
-	primary := globalHandler.GetPrimaries(c.DefaultQuery("group", "all"))
+func getPrimary(ctx *gin.Context, h PgRouteHandler) {
+	primary := h.GetPrimaries(ctx, ctx.DefaultQuery("group", "all"))
 	switch len(primary) {
 	case 0:
-		c.IndentedJSON(http.StatusNotFound, "")
+		ctx.IndentedJSON(http.StatusNotFound, "")
 	case 1:
-		c.IndentedJSON(http.StatusOK, primary[0])
+		ctx.IndentedJSON(http.StatusOK, primary[0])
 	default:
-		c.IndentedJSON(http.StatusConflict, "")
+		ctx.IndentedJSON(http.StatusConflict, "")
 	}
 }
 
 // getPrimaries responds with the list of all albums as JSON.
-func getPrimaries(c *gin.Context) {
-	primaries := globalHandler.GetPrimaries(c.DefaultQuery("group", "all"))
-	c.IndentedJSON(http.StatusOK, primaries)
+func getPrimaries(ctx *gin.Context, h PgRouteHandler) {
+	primaries := h.GetPrimaries(ctx, ctx.DefaultQuery("group", "all"))
+	ctx.IndentedJSON(http.StatusOK, primaries)
 }
 
 // getStandbys responds with the list of all albums as JSON.
-func getStandbys(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, globalHandler.GetStandbys(c.DefaultQuery("group", "all")))
+func getStandbys(ctx *gin.Context, h PgRouteHandler) {
+	ctx.IndentedJSON(http.StatusOK, h.GetStandbys(ctx, ctx.DefaultQuery("group", "all")))
 }
 
-func getStatus(c *gin.Context) {
-	id := c.Param("id")
+func getStatus(ctx *gin.Context, h PgRouteHandler) {
+	id := ctx.Param("id")
 
-	status := globalHandler.GetNodeStatus(id)
+	status := h.GetNodeStatus(ctx, id)
 	switch status {
 	case ghStatusPrimary, ghStatusStandby:
-		c.IndentedJSON(http.StatusOK, status)
+		ctx.IndentedJSON(http.StatusOK, status)
 	case ghStatusInvalid:
-		c.IndentedJSON(http.StatusNotFound, status)
+		ctx.IndentedJSON(http.StatusNotFound, status)
 	case ghStatusUnavailable:
-		c.IndentedJSON(http.StatusUnprocessableEntity, status)
+		ctx.IndentedJSON(http.StatusUnprocessableEntity, status)
 	}
 }
 
-func getAvailability(c *gin.Context) {
-	id := c.Param("id")
+func getAvailability(ctx *gin.Context, h PgRouteHandler) {
+	var (
+		limit  float64
+		err    error
+		id     = ctx.Param("id")
+		logger = log.With().Logger()
+	)
 
-	var limit float64
-
-	var err error
-
-	if value := c.DefaultQuery("limit", "10"); value == "" {
+	if value := ctx.DefaultQuery("limit", "10"); value == "" {
 		limit = -1
 	} else if limit, err = strconv.ParseFloat(value, bitSize32); err != nil {
-		globalHandler.log.Errorf("invalid value for limit (%s is not an int32)", value)
+		logger.Error().Msgf("invalid value for limit (%s is not an int32)", value)
 	}
 
-	status := globalHandler.GetNodeAvailability(id, limit)
+	status := h.GetNodeAvailability(ctx, id, limit)
 	if status == ghStatusOk {
-		c.IndentedJSON(http.StatusOK, status)
+		ctx.IndentedJSON(http.StatusOK, status)
 	} else if strings.HasPrefix(status, "exceeded") {
-		c.IndentedJSON(http.StatusRequestTimeout, status)
+		ctx.IndentedJSON(http.StatusRequestTimeout, status)
 	} else {
-		c.IndentedJSON(http.StatusExpectationFailed, status)
+		ctx.IndentedJSON(http.StatusExpectationFailed, status)
 	}
 }

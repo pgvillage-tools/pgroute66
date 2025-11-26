@@ -1,9 +1,7 @@
 package internal
 
 import (
-	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -11,14 +9,9 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-/*
- * This module reads the config file and returns a config object with all entries from the config yaml file.
- */
-
 const (
-	envConfName     = "PGROUTE66CONFIG"
-	defaultConfFile = "/etc/pgroute66/config.yaml"
-	debugLoglevel   = "debug"
+	debugLoglevel = "debug"
+	infoLoglevel  = "info"
 )
 
 // RouteConfig defines all config for the api
@@ -32,45 +25,22 @@ type RouteConfig struct {
 	LogFile  string           `yaml:"logfile"`
 }
 
-// NewConfig initializes and returns a route config
-func NewConfig() (config RouteConfig, err error) {
-	var debug bool
-
-	var version bool
-
-	var configFile string
-
-	flag.BoolVar(&debug, "d", false, "Add debugging output")
-	flag.BoolVar(&version, "v", false, "Show version information")
-
-	flag.StringVar(&configFile, "c", os.Getenv(envConfName), "Path to configfile")
-
-	flag.Parse()
-
-	if version {
-		fmt.Println(appVersion)
-		os.Exit(0)
-	}
-
-	if configFile == "" {
-		configFile = defaultConfFile
-	}
-
+// NewConfigFromFile parses a config file and returns a route config
+func NewConfigFromFile(configFile string, cmdDebug bool) (config RouteConfig, err error) {
 	configFile, err = filepath.EvalSymlinks(configFile)
 	if err != nil {
 		return config, err
 	}
 
 	// This only parsed as yaml, nothing else
-	// #nosec
-	yamlConfig, err := ioutil.ReadFile(configFile)
+	yamlConfig, err := os.ReadFile(configFile)
 	if err != nil {
 		return config, err
 	}
 
 	if err = yaml.Unmarshal(yamlConfig, &config); err != nil {
 		return RouteConfig{}, err
-	} else if debug {
+	} else if cmdDebug {
 		config.LogLevel = debugLoglevel
 	} else {
 		config.LogLevel = strings.ToLower(config.LogLevel)
@@ -93,7 +63,7 @@ func (rc RouteConfig) GroupHosts(groupName string) RouteHostGroup {
 
 	groupHosts, ok := rc.Groups[groupName]
 	if !ok {
-		globalHandler.log.Errorf("hostgroup %s is not defined", groupName)
+		logger.Error().Msgf("hostgroup %s is not defined", groupName)
 
 		return RouteHostGroup{}
 	}
@@ -119,6 +89,6 @@ func (rc RouteConfig) BindTo() string {
 }
 
 // Debug returns the debug level of this route
-func (rc RouteConfig) Debug() bool {
+func (rc *RouteConfig) Debug() bool {
 	return rc.LogLevel == debugLoglevel
 }
