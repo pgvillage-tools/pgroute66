@@ -35,12 +35,14 @@ builds:
       - -s -w -X "internal.appVersion={{.Version}}"
 
 archives:
-  - format: tar.gz
+  - format_overrides:
+      - formats: 
+        - tar.gz
+      - goos: windows
+        formats: 
+        - zip
     name_template: '{{ .Binary }}_v{{ .Version }}_{{ .Os }}_{{ .Arch }}{{ with .Arm }}v{{ . }}{{ end }}{{ with .Mips }}_{{ . }}{{ end }}{{ if not (eq .Amd64 "v1") }}{{ .Amd64 }}{{ end }}'
     # use zip for windows archives
-    format_overrides:
-      - goos: windows
-        format: zip
 
 changelog:
   sort: asc
