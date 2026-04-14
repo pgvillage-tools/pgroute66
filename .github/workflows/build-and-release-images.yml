@@ -5,8 +5,8 @@ on:
       - published
 
 jobs:
-  proxy:
-    name: Push proxy image to ghcr.io
+  image:
+    name: Push image to ghcr.io
     runs-on: ubuntu-latest
     permissions:
       packages: write
@@ -36,7 +36,7 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: |
-            name=ghcr.io/${{ github.repository_owner }}/stolon-proxy,enable=true
+            name=ghcr.io/${{ github.repository_owner }}/pgroute66,enable=true
           tags: |
             type=semver,pattern={{raw}}
             type=raw,value=latest
@@ -46,7 +46,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          file: ./Dockerfile.proxy
+          file: ./Dockerfile
           push: true
           platforms: 'linux/amd64,linux/arm64'
           tags: ${{ steps.stolon-meta.outputs.tags }}
