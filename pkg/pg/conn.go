@@ -7,9 +7,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/jackc/pgconn"
-	"github.com/jackc/pgx"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 )
 
@@ -85,7 +85,7 @@ func (c *Conn) Connect(ctx context.Context) (err error) {
 		log.Panicf("Unable to parse DSN (%s): %e", c.DSN(), err)
 	}
 
-	c.conn, err = pgxpool.ConnectConfig(ctx, poolConfig)
+	c.conn, err = pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		c.conn = nil
 
