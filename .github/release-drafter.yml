@@ -35,20 +35,14 @@ categories:
       labels:
         - 'dependencies'
         - 'security'
-change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
-change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
-version-resolver:
-  major:
+  - type: version-resolver
+    semver-increment: major
     when:
       labels:
         - 'major'
         - 'breaking'
-  minor:
-    when:
-      labels:
-        - 'minor'
-        - 'refactor'
-  patch:
+  - type: version-resolver
+    semver-increment: minor
     when:
       labels:
         - 'patch'
@@ -56,7 +50,16 @@ version-resolver:
         - 'ci'
         - 'style'
         - 'test'
-  default: patch
+  - type: version-resolver
+    semver-increment: minor
+    when:
+      labels:
+        - 'minor'
+        - 'refactor'
+  - type: version-resolver
+    semver-increment: patch
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 autolabeler:
   - label: 'breaking'
     title:
