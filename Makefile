@@ -4,9 +4,11 @@ else
 GOBIN=$(shell go env GOBIN)
 endif
 
+VERSION ?= v1.2.3
+
 build:
 	go mod tidy
-	go build ./cmd/pgroute66
+	go build -ldflags="-X 'github.com/pgvillage-tools/pgroute66/internal/version.appVersion=${VERSION}'" -o pgroute66 ./cmd/pgroute66
 
 debug:
 	go build -gcflags "all=-N -l" ./cmd/pgroute66
