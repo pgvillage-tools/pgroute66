@@ -48,7 +48,7 @@ func (c *Conn) avcTableExists(ctx context.Context) (bool, error) {
 
 // AvcCreateTable is a query builder for the create statement of the AVC table
 func (c *Conn) AvcCreateTable(ctx context.Context) error {
-	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	logger.Info().Msg("Creating table")
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
@@ -74,7 +74,7 @@ func (c *Conn) AvcCreateTable(ctx context.Context) error {
 }
 
 func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
-	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	fullColName := identifierNameSQL(AvcColumn)
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
@@ -102,7 +102,7 @@ func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
 
 // AvUpdateDuration can update the AVC column
 func (c *Conn) AvUpdateDuration(ctx context.Context) error {
-	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	var affected int64
 
 	if isPrimary, err := c.IsPrimary(ctx); err != nil {

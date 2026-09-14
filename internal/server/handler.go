@@ -58,7 +58,8 @@ func NewPgRouteHandler() *PgRouteHandler {
 			if b64password, exists := dsn["b64password"]; exists {
 				sDec, err := base64.StdEncoding.DecodeString(b64password)
 				if err != nil {
-					logger.Panic().AnErr("error", err).Str("b64password", b64password).Msg("Failed to decode b64password")
+					logger.Panic().AnErr("error", err).Str("b64password",
+						b64password).Msg("Failed to decode b64password")
 				}
 				dsn["password"] = string(sDec)
 				delete(dsn, "b64password")
@@ -67,7 +68,6 @@ func NewPgRouteHandler() *PgRouteHandler {
 		}
 		prh.groupConns[groupName] = conns
 	}
-
 	return &prh
 }
 

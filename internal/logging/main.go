@@ -17,8 +17,11 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type contextKey string
+
 const (
-	defaultLevel = zerolog.InfoLevel
+	defaultLevel            = zerolog.InfoLevel
+	loggingID    contextKey = "ID"
 )
 
 var (
@@ -105,16 +108,16 @@ func getComponentLevel(name Component) zerolog.Level {
 // GetID can be used to get the ID (uuid) from the context.
 // If there is no ID, it will be generated and added
 func GetID(inCtx context.Context) (id string, outCtx context.Context) {
-	var oCtxId = inCtx.Value("ID")
+	var oCtxId = inCtx.Value(loggingID)
 	if oCtxId == nil {
 		id = uuid.NewString()
-		outCtx = context.WithValue(inCtx, "ID", id)
+		outCtx = context.WithValue(inCtx, loggingID, id)
 	} else if sCtxId, ok := oCtxId.(string); ok {
 		id = sCtxId
 		outCtx = inCtx
 	} else {
 		id = uuid.NewString()
-		outCtx = context.WithValue(inCtx, "ID", id)
+		outCtx = context.WithValue(inCtx, loggingID, id)
 	}
 	return id, outCtx
 }

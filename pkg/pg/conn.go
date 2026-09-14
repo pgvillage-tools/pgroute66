@@ -85,7 +85,7 @@ func (c *Conn) Port() string {
 
 // Connect can be used to actually connect the connection
 func (c *Conn) Connect(ctx context.Context) (err error) {
-	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	if c.conn != nil {
 		return nil
 	}
@@ -108,7 +108,7 @@ func (c *Conn) Connect(ctx context.Context) (err error) {
 }
 
 func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (affected int64, err error) {
-	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	logger.Debug().Str("endpoint", c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
 	logger.Debug().Str("query", query).Str("endpoint", c.endpoint).Msg("Running query")
 
@@ -123,7 +123,7 @@ func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (aff
 }
 
 func (c *Conn) runQueryExists(ctx context.Context, query string, args ...any) (exists bool, err error) {
-	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	logger.Debug().Str("query", query).Str("endpoint", c.endpoint).Msg("Running query")
 
 	err = c.Connect(ctx)
@@ -150,7 +150,7 @@ func (c *Conn) GetRows(
 	query string,
 	args ...any,
 ) ([]map[string]any, error) {
-	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	if err := c.Connect(ctx); err != nil {
 		return nil, err
 	}

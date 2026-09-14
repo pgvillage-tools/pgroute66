@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	v1 "github.com/pgvillage-tools/pgroute66/api/v1"
+	apiv1 "github.com/pgvillage-tools/pgroute66/api/v1"
 	"github.com/pgvillage-tools/pgroute66/internal/logging"
 	"github.com/pgvillage-tools/pgroute66/internal/version"
 	"gopkg.in/yaml.v2"
@@ -33,13 +33,13 @@ const (
 
 // Config defines all config for the api
 type Config struct {
-	Hosts    v1.HostsConfig `yaml:"hosts"`
-	Groups   v1.HostGroups  `yaml:"groups"`
-	Bind     string         `yaml:"bind"`
-	Port     int            `yaml:"port"`
-	Ssl      v1.SSLConfig   `yaml:"ssl"`
-	LogLevel string         `yaml:"loglevel"`
-	LogFile  string         `yaml:"logfile"`
+	Hosts    apiv1.HostsConfig `yaml:"hosts"`
+	Groups   apiv1.HostGroups  `yaml:"groups"`
+	Bind     string            `yaml:"bind"`
+	Port     int               `yaml:"port"`
+	Ssl      apiv1.SSLConfig   `yaml:"ssl"`
+	LogLevel string            `yaml:"loglevel"`
+	LogFile  string            `yaml:"logfile"`
 }
 
 // NewConfig initializes and returns a route config
@@ -58,7 +58,7 @@ func NewConfig() (config Config, err error) {
 	flag.Parse()
 
 	if showVersion {
-		fmt.Println(version.Version)
+		fmt.Println(version.GetAppVersion())
 		os.Exit(0)
 	}
 
@@ -89,14 +89,15 @@ func NewConfig() (config Config, err error) {
 	return config, nil
 }
 
-func (rc Config) GetHostGroups() v1.HostGroups {
-	hg := v1.HostGroups{DefaultHostGroup: rc.Hosts}
+// GetHostGroups returns a combination of the host groups and the hosts
+func (rc Config) GetHostGroups() apiv1.HostGroups {
+	hg := apiv1.HostGroups{DefaultHostGroup: rc.Hosts}
 	maps.Copy(hg, rc.Groups)
 	return hg
 }
 
 // GroupHosts returns a list of hosts that are part of a group as defined in rc.HostGroups.
-func (rc Config) GroupHosts(groupName string) v1.HostsConfig {
+func (rc Config) GroupHosts(groupName string) apiv1.HostsConfig {
 	groupHosts, ok := rc.Groups[groupName]
 	if !ok {
 		return rc.Hosts

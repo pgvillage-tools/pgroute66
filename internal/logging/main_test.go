@@ -72,7 +72,8 @@ func TestDebuggingDynamic(t *testing.T) {
 	_, allDebugLogger := GetLogComponent(ctx, comp1)
 	assert.Equal(t, zerolog.DebugLevel, allDebugLogger.GetLevel())
 	// debug component on
-	SetDynamicLoggingConfig(defaultLevelString, Components{comp1: zerolog.DebugLevel})
+	SetDynamicLoggingConfig(defaultLevelString,
+		Components{comp1: zerolog.DebugLevel})
 	_, componentDebugLogger := GetLogComponent(ctx, comp1)
 	assert.Equal(t, zerolog.DebugLevel, componentDebugLogger.GetLevel())
 
@@ -102,15 +103,18 @@ func TestOutput(t *testing.T) {
 	_, logger := GetLogComponent(ctx, comp)
 
 	logger.Debug().Msg("this is a debug message")
-	assert.Empty(t, sink.String(), "Debug message should not be logged at info level")
+	assert.Empty(t, sink.String(),
+		"Debug message should not be logged at info level")
 	sink.Reset()
 
 	logger.Info().Msg("this is an info message")
-	assert.Contains(t, sink.String(), "this is an info message", "Info message should be logged at info level")
+	assert.Contains(t, sink.String(),
+		"this is an info message", "Info message should be logged at info level")
 	sink.Reset()
 
 	logger.Warn().Msg("this is a warning message")
-	assert.Contains(t, sink.String(), "this is a warning message", "Warning message should be logged at info level")
+	assert.Contains(t, sink.String(),
+		"this is a warning message", "Warning message should be logged at info level")
 	sink.Reset()
 
 	// Test Error level
@@ -118,11 +122,13 @@ func TestOutput(t *testing.T) {
 	SetDynamicLoggingConfig("error", nil)
 	_, logger = GetLogComponent(ctx, comp)
 	logger.Warn().Msg("this is another warning message")
-	assert.Empty(t, sink.String(), "Warning message should not be logged at error level")
+	assert.Empty(t, sink.String(),
+		"Warning message should not be logged at error level")
 	sink.Reset()
 
 	logger.Error().Msg("this is an error message")
-	assert.Contains(t, sink.String(), "this is an error message", "Error message should be logged at error level")
+	assert.Contains(t, sink.String(),
+		"this is an error message", "Error message should be logged at error level")
 	sink.Reset()
 }
 
@@ -136,7 +142,8 @@ func TestInvalidLevel(t *testing.T) {
 
 	_, logger := GetLogComponent(ctx, comp)
 
-	assert.Equal(t, zerolog.InfoLevel, logger.GetLevel(), "Logger level should default to Info for invalid level strings")
+	assert.Equal(t, zerolog.InfoLevel, logger.GetLevel(),
+		"Logger level should default to Info for invalid level strings")
 }
 
 func TestColoring(t *testing.T) {

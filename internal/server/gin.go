@@ -95,7 +95,6 @@ func getStandbys(c *gin.Context) {
 		c.Request.Context(),
 		c.DefaultQuery("group", config.DefaultHostGroup)),
 	)
-
 }
 
 func getStatus(c *gin.Context) {
