@@ -17,6 +17,9 @@ const (
 	ghStatusPrimary     = "primary"
 	ghStatusStandby     = "standby"
 	ghStatusUnavailable = "unavailable"
+	ghStatusUndefined   = "undefined"
+
+	groupMissingMsg = "groupNot defined in config"
 )
 
 // PgRouteHandler handles all PostgreSQL connections for a route
@@ -76,6 +79,7 @@ func (prh PgRouteHandler) GetStandbys(ctx context.Context, group string) (standb
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	groupConnections, ok := prh.groupConns[group]
 	if !ok {
+		logger.Error().Str("group", group).Msg(groupMissingMsg)
 		return nil
 	}
 	for name, conn := range groupConnections {
@@ -100,7 +104,8 @@ func (prh PgRouteHandler) GetPrimaries(ctx context.Context, group string) (prima
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	groupConnections, ok := prh.groupConns[group]
 	if !ok {
-		logger.Fatal().Str("group", group).Msg("not defined in config")
+		logger.Error().Str("group", group).Msg(groupMissingMsg)
+		return nil
 	}
 	for name, conn := range groupConnections {
 		isPrimary, err := conn.IsPrimary(ctx)
@@ -127,7 +132,8 @@ func (prh PgRouteHandler) GetNodeStatus(ctx context.Context, group string, name 
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	nodes, exists := prh.groupConns[group]
 	if !exists {
-		logger.Fatal().Str("group", group).Msg("not defined in config")
+		logger.Error().Str("group", group).Msg(groupMissingMsg)
+		return ghStatusUndefined
 	}
 	if node, exists := nodes[name]; exists {
 		isPrimary, err := node.IsPrimary(ctx)
@@ -147,7 +153,8 @@ func (prh PgRouteHandler) UpdateNodeAvailability(ctx context.Context, group stri
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	nodes, exists := prh.groupConns[group]
 	if !exists {
-		logger.Fatal().Str("group", group).Msg("not defined in config")
+		logger.Error().Str("group", group).Msg(groupMissingMsg)
+		return
 	}
 	for nodeName, conn := range nodes {
 		if isPrimary, err := conn.IsPrimary(ctx); err != nil {
@@ -172,7 +179,8 @@ func (prh PgRouteHandler) CreateAvailabilityTable(
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	nodes, exists := prh.groupConns[group]
 	if !exists {
-		logger.Fatal().Str("group", group).Msg("not defined in config")
+		logger.Error().Str("group", group).Msg(groupMissingMsg)
+		return
 	}
 	for nodeName, conn := range nodes {
 		if isPrimary, err := conn.IsPrimary(ctx); err != nil {
@@ -194,7 +202,8 @@ func (prh PgRouteHandler) GetNodeAvailability(ctx context.Context, group string,
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	nodes, exists := prh.groupConns[group]
 	if !exists {
-		logger.Fatal().Str("group", group).Msg("not defined in config")
+		logger.Error().Str("group", group).Msg(groupMissingMsg)
+		return ""
 	}
 	prh.CreateAvailabilityTable(ctx, group)
 	defer prh.UpdateNodeAvailability(ctx, group)

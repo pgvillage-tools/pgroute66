@@ -110,6 +110,8 @@ func getStatus(c *gin.Context) {
 		c.IndentedJSON(http.StatusOK, status)
 	case ghStatusInvalid:
 		c.IndentedJSON(http.StatusNotFound, status)
+	case ghStatusUndefined:
+		c.IndentedJSON(http.StatusInternalServerError, status)
 	case ghStatusUnavailable:
 		c.IndentedJSON(http.StatusUnprocessableEntity, status)
 	}
