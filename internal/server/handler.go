@@ -1,4 +1,4 @@
-package internal
+package server
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 
+	v1 "github.com/mannemsolutions/pgroute66/api/v1"
 	"github.com/mannemsolutions/pgroute66/pkg/pg"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -30,8 +31,8 @@ const (
 type PgRouteHandler struct {
 	log         *zap.SugaredLogger
 	atom        zap.AtomicLevel
-	connections RouteConnections
-	config      RouteConfig
+	connections v1.Connections
+	config      Config
 }
 
 /*
@@ -83,8 +84,8 @@ func NewPgRouteHandler() *PgRouteHandler {
 }
 
 // GetStandbys connects all PostgreSQL servers and returns a list of all that are standby
-func (prh PgRouteHandler) GetStandbys(group string) (standbys []string) {
-	for name, conn := range prh.connections.FilteredConnections(prh.config.GroupHosts(group)) {
+func (prh PgRouteHandler) GetStandbys(ctx context.Context, group string) (standbys []string) {
+	for name, conn := range prh.connections.FilteredConnections(ctx, prh.config.GroupHosts(group)) {
 		isStandby, err := conn.IsStandby(context.Background())
 		if err != nil {
 			prh.log.Debugf("Could not get state of standby %s, %s", name, err.Error())
@@ -101,8 +102,8 @@ func (prh PgRouteHandler) GetStandbys(group string) (standbys []string) {
 }
 
 // GetPrimaries connects all PostgreSQL servers and returns a list of all that are primary
-func (prh PgRouteHandler) GetPrimaries(group string) (primaries []string) {
-	for name, conn := range prh.connections.FilteredConnections(prh.config.GroupHosts(group)) {
+func (prh PgRouteHandler) GetPrimaries(ctx context.Context, group string) (primaries []string) {
+	for name, conn := range prh.connections.FilteredConnections(ctx, prh.config.GroupHosts(group)) {
 		isPrimary, err := conn.IsPrimary(context.Background())
 		if err != nil {
 			prh.log.Debugf("Could not get state of primary %s, %s", name, err.Error())

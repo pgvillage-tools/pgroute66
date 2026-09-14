@@ -1,4 +1,4 @@
-package internal
+package server
 
 import (
 	"flag"
@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	v1 "github.com/mannemsolutions/pgroute66/api/v1"
+	"github.com/mannemsolutions/pgroute66/internal/version"
 	"gopkg.in/yaml.v2"
 )
 
@@ -20,34 +22,34 @@ const (
 	debugLoglevel   = "debug"
 )
 
-// RouteConfig defines all config for the api
-type RouteConfig struct {
-	Hosts    RouteHostsConfig `yaml:"hosts"`
-	Groups   RouteHostGroups  `yaml:"groups"`
-	Bind     string           `yaml:"bind"`
-	Port     int              `yaml:"port"`
-	Ssl      RouteSSLConfig   `yaml:"ssl"`
-	LogLevel string           `yaml:"loglevel"`
-	LogFile  string           `yaml:"logfile"`
+// Config defines all config for the api
+type Config struct {
+	Hosts    v1.HostsConfig `yaml:"hosts"`
+	Groups   v1.HostGroups  `yaml:"groups"`
+	Bind     string         `yaml:"bind"`
+	Port     int            `yaml:"port"`
+	Ssl      v1.SSLConfig   `yaml:"ssl"`
+	LogLevel string         `yaml:"loglevel"`
+	LogFile  string         `yaml:"logfile"`
 }
 
 // NewConfig initializes and returns a route config
-func NewConfig() (config RouteConfig, err error) {
+func NewConfig() (config Config, err error) {
 	var debug bool
 
-	var version bool
+	var showVersion bool
 
 	var configFile string
 
 	flag.BoolVar(&debug, "d", false, "Add debugging output")
-	flag.BoolVar(&version, "v", false, "Show version information")
+	flag.BoolVar(&showVersion, "v", false, "Show version information")
 
 	flag.StringVar(&configFile, "c", os.Getenv(envConfName), "Path to configfile")
 
 	flag.Parse()
 
-	if version {
-		fmt.Println(appVersion)
+	if showVersion {
+		fmt.Println(version.Version)
 		os.Exit(0)
 	}
 
@@ -68,7 +70,7 @@ func NewConfig() (config RouteConfig, err error) {
 	}
 
 	if err = yaml.Unmarshal(yamlConfig, &config); err != nil {
-		return RouteConfig{}, err
+		return Config{}, err
 	} else if debug {
 		config.LogLevel = debugLoglevel
 	} else {
@@ -80,9 +82,9 @@ func NewConfig() (config RouteConfig, err error) {
 
 // GroupHosts returns a list of hosts that are part of a group as defined in rc.HostGroups.
 // HostGroup "all" is a special placeholder for all hosts defined in rc.Hosts.
-func (rc RouteConfig) GroupHosts(groupName string) RouteHostGroup {
+func (rc Config) GroupHosts(groupName string) v1.HostGroup {
 	if groupName == "all" {
-		var rhg RouteHostGroup
+		var rhg v1.HostGroup
 		for host := range rc.Hosts {
 			rhg = append(rhg, host)
 		}
@@ -94,13 +96,13 @@ func (rc RouteConfig) GroupHosts(groupName string) RouteHostGroup {
 	if !ok {
 		globalHandler.log.Errorf("hostgroup %s is not defined", groupName)
 
-		return RouteHostGroup{}
+		return v1.HostGroup{}
 	}
 	return groupHosts
 }
 
 // BindTo returns the string of the host/port to bind to
-func (rc RouteConfig) BindTo() string {
+func (rc Config) BindTo() string {
 	port := rc.Port
 	if port == 0 {
 		if rc.Ssl.Enabled() {
@@ -118,6 +120,6 @@ func (rc RouteConfig) BindTo() string {
 }
 
 // Debug returns the debug level of this route
-func (rc RouteConfig) Debug() bool {
+func (rc Config) Debug() bool {
 	return rc.LogLevel == debugLoglevel
 }

@@ -1,5 +1,5 @@
 // Package internal holds all unexported code
-package internal
+package server
 
 import (
 	"crypto/tls"
@@ -35,7 +35,12 @@ func RunAPI() {
 	if globalHandler.config.Ssl.Enabled() {
 		globalHandler.log.Debug("Running with SSL")
 
-		cert, err = tls.X509KeyPair(globalHandler.config.Ssl.MustCertBytes(), globalHandler.config.Ssl.MustKeyBytes())
+		var keyBytes []byte
+		keyBytes, err = globalHandler.config.Ssl.KeyBytes()
+		if err != nil {
+			globalHandler.log.Fatal("Error parsing key bytes", err)
+		}
+		cert, err = tls.X509KeyPair(globalHandler.config.Ssl.MustCertBytes(), keyBytes)
 		if err != nil {
 			globalHandler.log.Fatal("Error parsing cert and key", err)
 		}
@@ -57,7 +62,7 @@ func RunAPI() {
 }
 
 func getPrimary(c *gin.Context) {
-	primary := globalHandler.GetPrimaries(c.DefaultQuery("group", "all"))
+	primary := globalHandler.GetPrimaries(c.Request.Context(), c.DefaultQuery("group", "all"))
 	switch len(primary) {
 	case 0:
 		c.IndentedJSON(http.StatusNotFound, "")
@@ -70,13 +75,13 @@ func getPrimary(c *gin.Context) {
 
 // getPrimaries responds with the list of all albums as JSON.
 func getPrimaries(c *gin.Context) {
-	primaries := globalHandler.GetPrimaries(c.DefaultQuery("group", "all"))
+	primaries := globalHandler.GetPrimaries(c.Request.Context(), c.DefaultQuery("group", "all"))
 	c.IndentedJSON(http.StatusOK, primaries)
 }
 
 // getStandbys responds with the list of all albums as JSON.
 func getStandbys(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, globalHandler.GetStandbys(c.DefaultQuery("group", "all")))
+	c.IndentedJSON(http.StatusOK, globalHandler.GetStandbys(c.Request.Context(), c.DefaultQuery("group", "all")))
 }
 
 func getStatus(c *gin.Context) {

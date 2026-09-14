@@ -2,9 +2,9 @@
 package main
 
 import (
-	"github.com/mannemsolutions/pgroute66/internal"
+	"github.com/mannemsolutions/pgroute66/internal/server"
 )
 
 func main() {
-	internal.RunAPI()
+	server.RunAPI()
 }

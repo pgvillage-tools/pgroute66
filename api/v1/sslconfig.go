@@ -1,4 +1,4 @@
-package internal
+package v1
 
 import (
 	"encoding/base64"
@@ -6,14 +6,14 @@ import (
 	"log"
 )
 
-// RouteSSLConfig is a combination of an SSL cert and a key
-type RouteSSLConfig struct {
+// SSLConfig is a combination of an SSL cert and a key
+type SSLConfig struct {
 	Cert string `yaml:"b64cert"`
 	Key  string `yaml:"b64key"`
 }
 
 // Enabled returns wether this config is enabled (both cert and key are defined)
-func (rsc RouteSSLConfig) Enabled() bool {
+func (rsc SSLConfig) Enabled() bool {
 	if rsc.Cert != "" && rsc.Key != "" {
 		return true
 	}
@@ -21,7 +21,7 @@ func (rsc RouteSSLConfig) Enabled() bool {
 }
 
 // KeyBytes returns the bytes version of this key
-func (rsc RouteSSLConfig) KeyBytes() ([]byte, error) {
+func (rsc SSLConfig) KeyBytes() ([]byte, error) {
 	if !rsc.Enabled() {
 		return nil, errors.New("cannot get CertBytes when SSL is not enabled")
 	}
@@ -29,18 +29,8 @@ func (rsc RouteSSLConfig) KeyBytes() ([]byte, error) {
 	return base64.StdEncoding.DecodeString(rsc.Key)
 }
 
-// MustKeyBytes returns the bytes value of this key, or logs a fatal message
-func (rsc RouteSSLConfig) MustKeyBytes() []byte {
-	kb, err := rsc.KeyBytes()
-	if err != nil {
-		globalHandler.log.Fatal("could not decrypt SSL key", err)
-	}
-
-	return kb
-}
-
 // CertBytes returns the bytes value of this cert
-func (rsc RouteSSLConfig) CertBytes() ([]byte, error) {
+func (rsc SSLConfig) CertBytes() ([]byte, error) {
 	if !rsc.Enabled() {
 		return nil, errors.New("cannot get CertBytes when SSL is not enabled")
 	}
@@ -49,7 +39,7 @@ func (rsc RouteSSLConfig) CertBytes() ([]byte, error) {
 }
 
 // MustCertBytes returns the bytes value of this cert, or logs a fatal message
-func (rsc RouteSSLConfig) MustCertBytes() []byte {
+func (rsc SSLConfig) MustCertBytes() []byte {
 	cb, err := rsc.CertBytes()
 	if err != nil {
 		log.Fatal("could not decrypt SSL Cert", err)

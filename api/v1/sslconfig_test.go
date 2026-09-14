@@ -1,4 +1,4 @@
-package internal
+package v1
 
 import (
 	"encoding/base64"
@@ -12,7 +12,7 @@ var _ = Describe("Routesslconfig", func() {
 		var (
 			cert = []byte("--- cert ---")
 			key  = []byte("--- key ---")
-			rsc  = RouteSSLConfig{
+			rsc  = SSLConfig{
 				Cert: base64.StdEncoding.EncodeToString([]byte(cert)),
 				Key:  base64.StdEncoding.EncodeToString([]byte(key)),
 			}
@@ -22,7 +22,8 @@ var _ = Describe("Routesslconfig", func() {
 		})
 		It("should not panic on key / cert", func() {
 			Expect(func() { _ = rsc.MustCertBytes() }).NotTo(Panic())
-			Expect(func() { _ = rsc.MustKeyBytes() }).NotTo(Panic())
+			_, err := rsc.KeyBytes()
+			Expect(err).NotTo(HaveOccurred())
 		})
 		It("should deliver cert bytes properly", func() {
 			bytes, err := rsc.KeyBytes()
