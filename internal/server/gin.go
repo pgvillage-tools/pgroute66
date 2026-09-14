@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pgvillage-tools/pgroute66/internal/config"
 	"github.com/pgvillage-tools/pgroute66/internal/logging"
 )
 
@@ -65,7 +66,10 @@ func RunAPI() {
 }
 
 func getPrimary(c *gin.Context) {
-	primary := globalHandler.GetPrimaries(c.Request.Context(), c.DefaultQuery("group", "all"))
+	primary := globalHandler.GetPrimaries(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup),
+	)
 	switch len(primary) {
 	case 0:
 		c.IndentedJSON(http.StatusNotFound, "")
@@ -78,19 +82,30 @@ func getPrimary(c *gin.Context) {
 
 // getPrimaries responds with the list of all albums as JSON.
 func getPrimaries(c *gin.Context) {
-	primaries := globalHandler.GetPrimaries(c.Request.Context(), c.DefaultQuery("group", "all"))
+	primaries := globalHandler.GetPrimaries(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup),
+	)
 	c.IndentedJSON(http.StatusOK, primaries)
 }
 
 // getStandbys responds with the list of all albums as JSON.
 func getStandbys(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, globalHandler.GetStandbys(c.Request.Context(), c.DefaultQuery("group", "all")))
+	c.IndentedJSON(http.StatusOK, globalHandler.GetStandbys(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup)),
+	)
+
 }
 
 func getStatus(c *gin.Context) {
 	id := c.Param("id")
 
-	status := globalHandler.GetNodeStatus(c.Request.Context(), c.DefaultQuery("group", "all"), id)
+	status := globalHandler.GetNodeStatus(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup),
+		id,
+	)
 	switch status {
 	case ghStatusPrimary, ghStatusStandby:
 		c.IndentedJSON(http.StatusOK, status)
@@ -115,7 +130,12 @@ func getAvailability(c *gin.Context) {
 		logger.Error().Str("value", value).Msg("invalid value for limit (%s is not an int32)")
 	}
 
-	status := globalHandler.GetNodeAvailability(c.Request.Context(), c.DefaultQuery("group", "all"), id, limit)
+	status := globalHandler.GetNodeAvailability(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup),
+		id,
+		limit,
+	)
 	if status == ghStatusOk {
 		c.IndentedJSON(http.StatusOK, status)
 	} else if strings.HasPrefix(status, "exceeded") {

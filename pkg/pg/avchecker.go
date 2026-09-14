@@ -48,7 +48,7 @@ func (c *Conn) avcTableExists(ctx context.Context) (bool, error) {
 
 // AvcCreateTable is a query builder for the create statement of the AVC table
 func (c *Conn) AvcCreateTable(ctx context.Context) error {
-	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	logger.Info().Msg("Creating table")
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
@@ -74,7 +74,7 @@ func (c *Conn) AvcCreateTable(ctx context.Context) error {
 }
 
 func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
-	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	fullColName := identifierNameSQL(AvcColumn)
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
@@ -102,13 +102,14 @@ func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
 
 // AvUpdateDuration can update the AVC column
 func (c *Conn) AvUpdateDuration(ctx context.Context) error {
-	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	var affected int64
 
 	if isPrimary, err := c.IsPrimary(ctx); err != nil {
 		return err
 	} else if !isPrimary {
-		logger.Info().Msg("skipping update of %s on a standby database server")
+		logger.Info().Str("table", fullTableName()).
+			Msg("skipping update of %s on a standby database server")
 		return nil
 	} else if err = c.AvcCreateTable(ctx); err != nil {
 		return err

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"os"
 	"sort"
 
 	"github.com/pgvillage-tools/pgroute66/internal/config"
@@ -18,12 +17,6 @@ const (
 	ghStatusPrimary     = "primary"
 	ghStatusStandby     = "standby"
 	ghStatusUnavailable = "unavailable"
-	ghStatusUndefined   = "undefined"
-)
-
-const (
-	pgrOpenMode   = os.O_APPEND | os.O_CREATE | os.O_WRONLY
-	pgrCreateMode = 0o644
 )
 
 // PgRouteHandler handles all PostgreSQL connections for a route
@@ -83,7 +76,7 @@ func (prh PgRouteHandler) GetStandbys(ctx context.Context, group string) (standb
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	groupConnections, ok := prh.groupConns[group]
 	if !ok {
-		logger.Fatal().Str("group", group).Msg("not defined in config")
+		return nil
 	}
 	for name, conn := range groupConnections {
 		isStandby, err := conn.IsStandby(ctx)

@@ -17,6 +17,9 @@ import (
 const (
 	defaultSSLPort   = 8443
 	defaultNoSSLPort = 8080
+
+	// DefaultHostGroup is a special placeholder for all hosts defined in rc.Hosts.
+	DefaultHostGroup = "default"
 )
 
 /*
@@ -77,23 +80,22 @@ func NewConfig() (config Config, err error) {
 
 	if err = yaml.Unmarshal(yamlConfig, &config); err != nil {
 		return Config{}, err
-	} else if debug {
-		logging.SetStaticLevel("debug")
-	} else {
-		logging.SetStaticLevel(strings.ToLower(config.LogLevel))
 	}
+	if debug {
+		config.LogLevel = "debug"
+	}
+	logging.SetStaticLevel(strings.ToLower(config.LogLevel))
 
 	return config, nil
 }
 
 func (rc Config) GetHostGroups() v1.HostGroups {
-	hg := v1.HostGroups{"default": rc.Hosts}
+	hg := v1.HostGroups{DefaultHostGroup: rc.Hosts}
 	maps.Copy(hg, rc.Groups)
 	return hg
 }
 
 // GroupHosts returns a list of hosts that are part of a group as defined in rc.HostGroups.
-// HostGroup "all" is a special placeholder for all hosts defined in rc.Hosts.
 func (rc Config) GroupHosts(groupName string) v1.HostsConfig {
 	groupHosts, ok := rc.Groups[groupName]
 	if !ok {

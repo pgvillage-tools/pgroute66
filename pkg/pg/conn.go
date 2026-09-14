@@ -40,6 +40,19 @@ func (c *Conn) DSN() (dsn string) {
 	return strings.Join(pairs[:], " ")
 }
 
+// MaskedDSN returns a string value of the COnnection Parameters
+func (c *Conn) MaskedDSN() (dsn string) {
+	pairs := make([]string, 0, len(c.connParams))
+	for key, value := range c.connParams {
+		if key == "password" || key == "b64password" {
+			value = "*****"
+		}
+		pairs = append(pairs, fmt.Sprintf("%s=%s", key, connectStringValue(value)))
+	}
+
+	return strings.Join(pairs[:], " ")
+}
+
 // Host returns the host parameter from the Connection Parameters
 func (c *Conn) Host() string {
 	value, ok := c.connParams["host"]
@@ -72,12 +85,12 @@ func (c *Conn) Port() string {
 
 // Connect can be used to actually connect the connection
 func (c *Conn) Connect(ctx context.Context) (err error) {
-	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	if c.conn != nil {
 		return nil
 	}
 
-	logger.Debug().Str("endpoint", c.endpoint).Str("dsn", c.DSN()).Msg("connecting")
+	logger.Debug().Str("endpoint", c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
 
 	poolConfig, err := pgxpool.ParseConfig(c.DSN())
 	if err != nil {
@@ -95,8 +108,8 @@ func (c *Conn) Connect(ctx context.Context) (err error) {
 }
 
 func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (affected int64, err error) {
-	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
-	logger.Debug().Str("endpoint", c.endpoint).Str("dsn", c.DSN()).Msg("connecting")
+	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	logger.Debug().Str("endpoint", c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
 	logger.Debug().Str("query", query).Str("endpoint", c.endpoint).Msg("Running query")
 
 	var ct pgconn.CommandTag
@@ -110,7 +123,7 @@ func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (aff
 }
 
 func (c *Conn) runQueryExists(ctx context.Context, query string, args ...any) (exists bool, err error) {
-	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	logger.Debug().Str("query", query).Str("endpoint", c.endpoint).Msg("Running query")
 
 	err = c.Connect(ctx)
@@ -137,7 +150,7 @@ func (c *Conn) GetRows(
 	query string,
 	args ...any,
 ) ([]map[string]any, error) {
-	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
+	ctx, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	if err := c.Connect(ctx); err != nil {
 		return nil, err
 	}

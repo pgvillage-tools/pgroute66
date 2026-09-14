@@ -29,7 +29,7 @@ And thus [pgroute66](https://github.com/MannemSolutions/pgroute66) was born.
 ## Downloading pgroute66
 The most straight forward way is to download [pgroute66](https://github.com/MannemSolutions/pgroute66) directly from the [github release page](https://github.com/MannemSolutions/pgroute66/releases).
 But there are other options, like
-- using the [container image from dockerhub](https://hub.docker.com/repository/docker/pgvillage-tools/pgroute66/general)
+- using the [container image from ghcr.io](https://github.com/pgvillage-tools/pgroute66/pkgs/container/pgroute66)
 - direct build from source (if you feel you must)
 
 Please refer to [our download instructions](DOWNLOAD_AND_RUN.md) for more details on all options.
