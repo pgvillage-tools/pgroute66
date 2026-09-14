@@ -38,6 +38,7 @@ func TestNewComponentsFromStringMap(t *testing.T) {
 		}
 		warnComponents = []string{
 			"server",
+			"postgres",
 		}
 		strMap = map[string]string{}
 	)

@@ -5,13 +5,11 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 
-	v1 "github.com/pgvillage-tools/pgroute66/api/v1"
+	"github.com/pgvillage-tools/pgroute66/internal/config"
+	"github.com/pgvillage-tools/pgroute66/internal/logging"
 	"github.com/pgvillage-tools/pgroute66/pkg/pg"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -20,6 +18,7 @@ const (
 	ghStatusPrimary     = "primary"
 	ghStatusStandby     = "standby"
 	ghStatusUnavailable = "unavailable"
+	ghStatusUndefined   = "undefined"
 )
 
 const (
@@ -29,10 +28,8 @@ const (
 
 // PgRouteHandler handles all PostgreSQL connections for a route
 type PgRouteHandler struct {
-	log         *zap.SugaredLogger
-	atom        zap.AtomicLevel
-	connections v1.Connections
-	config      Config
+	groupConns GroupConnections
+	config     config.Config
 }
 
 /*
@@ -52,32 +49,30 @@ func Initialize() {
 func NewPgRouteHandler() *PgRouteHandler {
 	var err error
 
+	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	prh := PgRouteHandler{
-		connections: map[string]*pg.Conn{},
+		groupConns: GroupConnections{},
 	}
 
-	prh.config, err = NewConfig()
+	prh.config, err = config.NewConfig()
 	if err != nil {
-		prh.initLogger("")
-		prh.log.Fatal("Cannot parse config", err)
+		logger.Fatal().AnErr("error", err).Msg("Cannot parse config")
 	}
 
-	prh.initLogger(prh.config.LogFile)
-	prh.enableDebug(prh.config.Debug())
-
-	for name, dsn := range prh.config.Hosts {
-		if b64password, exists := dsn["b64password"]; exists {
-			sDec, err := base64.StdEncoding.DecodeString(b64password)
-			if err != nil {
-				prh.log.Panicf("Could not decode b64password %s, %s", b64password, err.Error())
+	for groupName, hosts := range prh.config.GetHostGroups() {
+		conns := Connections{}
+		for hostName, dsn := range hosts {
+			if b64password, exists := dsn["b64password"]; exists {
+				sDec, err := base64.StdEncoding.DecodeString(b64password)
+				if err != nil {
+					logger.Panic().AnErr("error", err).Str("b64password", b64password).Msg("Failed to decode b64password")
+				}
+				dsn["password"] = string(sDec)
+				delete(dsn, "b64password")
 			}
-
-			dsn["password"] = string(sDec)
-
-			delete(dsn, "b64password")
+			conns[hostName] = pg.NewConn(dsn)
 		}
-
-		prh.connections[name] = pg.NewConn(dsn, prh.log)
+		prh.groupConns[groupName] = conns
 	}
 
 	return &prh
@@ -85,28 +80,43 @@ func NewPgRouteHandler() *PgRouteHandler {
 
 // GetStandbys connects all PostgreSQL servers and returns a list of all that are standby
 func (prh PgRouteHandler) GetStandbys(ctx context.Context, group string) (standbys []string) {
-	for name, conn := range prh.connections.FilteredConnections(ctx, prh.config.GroupHosts(group)) {
-		isStandby, err := conn.IsStandby(context.Background())
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	groupConnections, ok := prh.groupConns[group]
+	if !ok {
+		logger.Fatal().Str("group", group).Msg("not defined in config")
+	}
+	for name, conn := range groupConnections {
+		isStandby, err := conn.IsStandby(ctx)
 		if err != nil {
-			prh.log.Debugf("Could not get state of standby %s, %s", name, err.Error())
+			logger.Debug().
+				Str("group", group).
+				Str("standby", name).
+				AnErr("error", err).
+				Msg("Could not get state of standby")
 		}
-
 		if isStandby {
 			standbys = append(standbys, name)
 		}
 	}
-
 	sort.Strings(standbys)
-
 	return standbys
 }
 
 // GetPrimaries connects all PostgreSQL servers and returns a list of all that are primary
 func (prh PgRouteHandler) GetPrimaries(ctx context.Context, group string) (primaries []string) {
-	for name, conn := range prh.connections.FilteredConnections(ctx, prh.config.GroupHosts(group)) {
-		isPrimary, err := conn.IsPrimary(context.Background())
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	groupConnections, ok := prh.groupConns[group]
+	if !ok {
+		logger.Fatal().Str("group", group).Msg("not defined in config")
+	}
+	for name, conn := range groupConnections {
+		isPrimary, err := conn.IsPrimary(ctx)
 		if err != nil {
-			prh.log.Debugf("Could not get state of primary %s, %s", name, err.Error())
+			logger.Debug().
+				Str("group", group).
+				Str("primary", name).
+				AnErr("error", err).
+				Msg("Could not get state of primary")
 		}
 
 		if isPrimary {
@@ -120,134 +130,95 @@ func (prh PgRouteHandler) GetPrimaries(ctx context.Context, group string) (prima
 }
 
 // GetNodeStatus returns a status for a node
-func (prh PgRouteHandler) GetNodeStatus(name string) string {
-	if node, exists := prh.connections[name]; exists {
-		isPrimary, err := node.IsPrimary(context.Background())
+func (prh PgRouteHandler) GetNodeStatus(ctx context.Context, group string, name string) string {
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	nodes, exists := prh.groupConns[group]
+	if !exists {
+		logger.Fatal().Str("group", group).Msg("not defined in config")
+	}
+	if node, exists := nodes[name]; exists {
+		isPrimary, err := node.IsPrimary(ctx)
 		if err != nil {
-			prh.log.Debugf("Could not get state of node %s, %s", name, err.Error())
-
+			logger.Debug().Str("node", name).Msg("Could not get state of node")
 			return ghStatusUnavailable
 		} else if isPrimary {
 			return ghStatusPrimary
 		}
 		return ghStatusStandby
 	}
-
 	return ghStatusInvalid
 }
 
 // UpdateNodeAvailability on the primary
-func (prh PgRouteHandler) UpdateNodeAvailability() {
-	for nodeName, conn := range prh.connections {
-		if isPrimary, err := conn.IsPrimary(context.Background()); err != nil {
-			prh.log.Errorf("failed to check if node %s is primary: %e", nodeName, err)
+func (prh PgRouteHandler) UpdateNodeAvailability(ctx context.Context, group string) {
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	nodes, exists := prh.groupConns[group]
+	if !exists {
+		logger.Fatal().Str("group", group).Msg("not defined in config")
+	}
+	for nodeName, conn := range nodes {
+		if isPrimary, err := conn.IsPrimary(ctx); err != nil {
+			logger.Debug().Str("node", nodeName).AnErr("error", err).Msg("failed to check if node %s is primary")
 		} else if !isPrimary {
 			continue
-		} else if err = conn.AvUpdateDuration(context.Background()); err != nil {
-			prh.log.Errorf("failed to update availability info on node %s: %e", nodeName, err)
+		} else if err = conn.AvUpdateDuration(ctx); err != nil {
+			logger.Debug().Str("node", nodeName).AnErr("error", err).Msg("failed to update availability info on node")
 			return
 		} else {
-			prh.log.Infof("updating availability info on node %s", nodeName)
-
+			logger.Info().Str("node", nodeName).Msg("updating availability info on node")
 			return
 		}
 	}
 }
 
 // CreateAvailabilityTable creates the AVC table
-func (prh PgRouteHandler) CreateAvailabilityTable() {
-	for nodeName, conn := range prh.connections {
-		if isPrimary, err := conn.IsPrimary(context.Background()); err != nil {
-			prh.log.Errorf("failed to check if node %s is primary: %e", nodeName, err)
+func (prh PgRouteHandler) CreateAvailabilityTable(
+	ctx context.Context,
+	group string,
+) {
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	nodes, exists := prh.groupConns[group]
+	if !exists {
+		logger.Fatal().Str("group", group).Msg("not defined in config")
+	}
+	for nodeName, conn := range nodes {
+		if isPrimary, err := conn.IsPrimary(ctx); err != nil {
+			logger.Debug().Str("node", nodeName).AnErr("error", err).Msg("failed to check if node %s is primary")
 		} else if !isPrimary {
 			continue
-		} else if err = conn.AvcCreateTable(context.Background()); err != nil {
-			prh.log.Errorf("failed to create availability table on node %s: %e", nodeName, err)
-
+		} else if err = conn.AvcCreateTable(ctx); err != nil {
+			logger.Debug().Str("node", nodeName).AnErr("error", err).Msg("failed to create availability table")
 			return
 		} else {
-			prh.log.Infof("creating availability table on node %s", nodeName)
-
+			logger.Info().Str("node", nodeName).Msg("creating availability table")
 			return
 		}
 	}
 }
 
 // GetNodeAvailability returns the state of one node
-func (prh PgRouteHandler) GetNodeAvailability(name string, limit float64) string {
-	prh.CreateAvailabilityTable()
-	defer prh.UpdateNodeAvailability()
+func (prh PgRouteHandler) GetNodeAvailability(ctx context.Context, group string, name string, limit float64) string {
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	nodes, exists := prh.groupConns[group]
+	if !exists {
+		logger.Fatal().Str("group", group).Msg("not defined in config")
+	}
+	prh.CreateAvailabilityTable(ctx, group)
+	defer prh.UpdateNodeAvailability(ctx, group)
 
-	if node, exists := prh.connections[name]; exists {
-		err := node.AvCheckDuration(context.Background(), limit)
+	if node, exists := nodes[name]; exists {
+		err := node.AvCheckDuration(ctx, limit)
 		if err == nil {
-			prh.log.Infof("availability of node %s is within limits", name)
-
+			logger.Info().Str("node", name).Msg("availability of node %s is within limits")
 			return ghStatusOk
 		} else if aErr, ok := err.(pg.AvcDurationExceededError); ok {
-			prh.log.Infof("Availability limit exceeded for %s: %e", name, aErr)
+			logger.Info().Str("node", name).AnErr("error", err).Msg("Availability limit exceeded")
 			return fmt.Sprintf("exceeded (%s)", aErr.String())
 		}
-		prh.log.Errorf("unexpeced error occurred while retrieving availability of %s: %e", name, err)
+		logger.Info().Str("node", name).AnErr("error", err).
+			Msg("unexpected error occurred while retrieving availability")
 		return err.Error()
 	}
 
 	return ghStatusInvalid
-}
-
-func (prh *PgRouteHandler) initLogger(logFilePath string) {
-	prh.atom = zap.NewAtomicLevel()
-	// First, define our level-handling logic.
-	highPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl >= zapcore.ErrorLevel
-	})
-	lowPriority := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl < zapcore.ErrorLevel && lvl >= prh.atom.Level()
-	})
-
-	// High-priority output should also go to standard error, and low-priority
-	// output should also go to standard out.
-	consoleDebugging := zapcore.Lock(os.Stdout)
-	consoleErrors := zapcore.Lock(os.Stderr)
-
-	// Optimize the Kafka output for machine consumption and the console output
-	// for human operators.
-	// encoderCfg := zap.NewDevelopmentEncoderConfig()
-	encoderCfg := zap.NewProductionEncoderConfig()
-	encoderCfg.EncodeTime = zapcore.RFC3339TimeEncoder
-	consoleEncoder := zapcore.NewConsoleEncoder(encoderCfg)
-
-	// Join the outputs, encoders, and level-handling functions into zapcore.Cores, then tee the cores together.
-	var core zapcore.Core
-
-	if logFilePath != "" {
-		fileEncoder := zapcore.NewConsoleEncoder(encoderCfg)
-
-		if logFile, err := os.OpenFile(filepath.Clean(logFilePath), pgrOpenMode, pgrCreateMode); err != nil {
-			prh.initLogger("")
-			prh.log.Panicf("error while opening logfile: %s", err)
-		} else {
-			writer := zapcore.AddSync(logFile)
-			core = zapcore.NewTee(
-				zapcore.NewCore(fileEncoder, writer, prh.atom),
-				zapcore.NewCore(consoleEncoder, consoleErrors, highPriority),
-				zapcore.NewCore(consoleEncoder, consoleDebugging, lowPriority),
-			)
-		}
-	} else {
-		core = zapcore.NewTee(
-			zapcore.NewCore(consoleEncoder, consoleErrors, highPriority),
-			zapcore.NewCore(consoleEncoder, consoleDebugging, lowPriority),
-		)
-	}
-
-	prh.log = zap.New(core).Sugar()
-}
-
-func (prh *PgRouteHandler) enableDebug(debug bool) {
-	if debug {
-		prh.atom.SetLevel(zap.DebugLevel)
-	}
-
-	prh.log.Debug("Debug logging enabled")
 }

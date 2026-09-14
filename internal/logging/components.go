@@ -31,6 +31,8 @@ type Component int
 const (
 	// ServerComponent is the main component specifically for the WebApi
 	ServerComponent Component = iota
+	// PostgresComponent is the main component specifically for the WebApi
+	PostgresComponent Component = iota
 
 	// UnknownComponent represents a logging component with unknown origin
 	UnknownComponent Component = iota
@@ -43,6 +45,7 @@ var (
 		"undefined_component": UnknownComponent,
 		"unittest_component":  TestComponent,
 		"server":              ServerComponent,
+		"postgres":            ServerComponent,
 	}
 	reverseComponentMap map[Component]string
 )

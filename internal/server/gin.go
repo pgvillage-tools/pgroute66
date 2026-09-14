@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"crypto/tls"
 	"log"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pgvillage-tools/pgroute66/internal/logging"
 )
 
 // RunAPI will run the gin webserver
@@ -17,9 +19,10 @@ func RunAPI() {
 
 	var cert tls.Certificate
 
+	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	Initialize()
 
-	if !globalHandler.config.Debug() {
+	if globalHandler.config.LogFile != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
@@ -30,19 +33,19 @@ func RunAPI() {
 	router.GET("/v1/:id/status", getStatus)
 	router.GET("/v1/:id/availability", getAvailability)
 
-	globalHandler.log.Debugf("Running on %s", globalHandler.config.BindTo())
+	logger.Debug().Str("binding to", globalHandler.config.BindTo()).Msg("")
 
 	if globalHandler.config.Ssl.Enabled() {
-		globalHandler.log.Debug("Running with SSL")
+		logger.Debug().Msg("Running with SSL")
 
 		var keyBytes []byte
 		keyBytes, err = globalHandler.config.Ssl.KeyBytes()
 		if err != nil {
-			globalHandler.log.Fatal("Error parsing key bytes", err)
+			logger.Fatal().AnErr("error", err).Msg("Error parsing key bytes")
 		}
 		cert, err = tls.X509KeyPair(globalHandler.config.Ssl.MustCertBytes(), keyBytes)
 		if err != nil {
-			globalHandler.log.Fatal("Error parsing cert and key", err)
+			logger.Fatal().AnErr("error", err).Msg("Error parsing cert and key")
 		}
 
 		tlsConfig := tls.Config{
@@ -52,7 +55,7 @@ func RunAPI() {
 		server := http.Server{Addr: globalHandler.config.BindTo(), Handler: router, TLSConfig: &tlsConfig}
 		err = server.ListenAndServeTLS("", "")
 	} else {
-		globalHandler.log.Debug("Running without SSL")
+		logger.Debug().Msg("Running without SSL")
 		err = router.Run(globalHandler.config.BindTo())
 	}
 
@@ -87,7 +90,7 @@ func getStandbys(c *gin.Context) {
 func getStatus(c *gin.Context) {
 	id := c.Param("id")
 
-	status := globalHandler.GetNodeStatus(id)
+	status := globalHandler.GetNodeStatus(c.Request.Context(), c.DefaultQuery("group", "all"), id)
 	switch status {
 	case ghStatusPrimary, ghStatusStandby:
 		c.IndentedJSON(http.StatusOK, status)
@@ -99,6 +102,7 @@ func getStatus(c *gin.Context) {
 }
 
 func getAvailability(c *gin.Context) {
+	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	id := c.Param("id")
 
 	var limit float64
@@ -108,10 +112,10 @@ func getAvailability(c *gin.Context) {
 	if value := c.DefaultQuery("limit", "10"); value == "" {
 		limit = -1
 	} else if limit, err = strconv.ParseFloat(value, bitSize32); err != nil {
-		globalHandler.log.Errorf("invalid value for limit (%s is not an int32)", value)
+		logger.Error().Str("value", value).Msg("invalid value for limit (%s is not an int32)")
 	}
 
-	status := globalHandler.GetNodeAvailability(id, limit)
+	status := globalHandler.GetNodeAvailability(c.Request.Context(), c.DefaultQuery("group", "all"), id, limit)
 	if status == ghStatusOk {
 		c.IndentedJSON(http.StatusOK, status)
 	} else if strings.HasPrefix(status, "exceeded") {

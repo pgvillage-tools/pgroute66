@@ -1,15 +1,22 @@
-package server
+package config
 
 import (
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 
 	v1 "github.com/pgvillage-tools/pgroute66/api/v1"
+	"github.com/pgvillage-tools/pgroute66/internal/logging"
 	"github.com/pgvillage-tools/pgroute66/internal/version"
 	"gopkg.in/yaml.v2"
+)
+
+const (
+	defaultSSLPort   = 8443
+	defaultNoSSLPort = 8080
 )
 
 /*
@@ -19,7 +26,6 @@ import (
 const (
 	envConfName     = "PGROUTE66CONFIG"
 	defaultConfFile = "/etc/pgroute66/config.yaml"
-	debugLoglevel   = "debug"
 )
 
 // Config defines all config for the api
@@ -72,31 +78,26 @@ func NewConfig() (config Config, err error) {
 	if err = yaml.Unmarshal(yamlConfig, &config); err != nil {
 		return Config{}, err
 	} else if debug {
-		config.LogLevel = debugLoglevel
+		logging.SetStaticLevel("debug")
 	} else {
-		config.LogLevel = strings.ToLower(config.LogLevel)
+		logging.SetStaticLevel(strings.ToLower(config.LogLevel))
 	}
 
 	return config, nil
 }
 
+func (rc Config) GetHostGroups() v1.HostGroups {
+	hg := v1.HostGroups{"default": rc.Hosts}
+	maps.Copy(hg, rc.Groups)
+	return hg
+}
+
 // GroupHosts returns a list of hosts that are part of a group as defined in rc.HostGroups.
 // HostGroup "all" is a special placeholder for all hosts defined in rc.Hosts.
-func (rc Config) GroupHosts(groupName string) v1.HostGroup {
-	if groupName == "all" {
-		var rhg v1.HostGroup
-		for host := range rc.Hosts {
-			rhg = append(rhg, host)
-		}
-
-		return rhg
-	}
-
+func (rc Config) GroupHosts(groupName string) v1.HostsConfig {
 	groupHosts, ok := rc.Groups[groupName]
 	if !ok {
-		globalHandler.log.Errorf("hostgroup %s is not defined", groupName)
-
-		return v1.HostGroup{}
+		return rc.Hosts
 	}
 	return groupHosts
 }
@@ -117,9 +118,4 @@ func (rc Config) BindTo() string {
 	}
 
 	return fmt.Sprintf("%s:%d", rc.Bind, port)
-}
-
-// Debug returns the debug level of this route
-func (rc Config) Debug() bool {
-	return rc.LogLevel == debugLoglevel
 }

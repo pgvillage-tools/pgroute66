@@ -1,4 +1,4 @@
-package v1
+package server
 
 import (
 	"context"
@@ -8,10 +8,11 @@ import (
 )
 
 // Connections is a map of connections per route
+type GroupConnections map[string]Connections
 type Connections map[string]*pg.Conn
 
 // FilteredConnections return a list of connections that conform to a filter
-func (rcs Connections) FilteredConnections(ctx context.Context, filter []string) Connections {
+func (rcs Connections) filteredConnections(ctx context.Context, filter []string) Connections {
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	logger.Debug().Any("filter", filter).Msg("filtering")
 
