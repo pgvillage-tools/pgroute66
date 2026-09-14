@@ -7,47 +7,55 @@ replacers:
     replace: 'https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-$1-$2'
 categories:
   - title: '💥 BREAKING CHANGES'
-    labels:
-      - 'breaking'
+    when:
+      labels:
+        - 'breaking'
   - title: '🚀 Features'
-    labels:
-      - 'feature'
-      - 'enhancement'
+    when:
+      labels:
+        - 'feature'
+        - 'enhancement'
   - title: '🐛 Bug Fixes'
-    labels:
-      - 'fix'
-      - 'bugfix'
-      - 'bug'
+    when:
+      labels:
+        - 'fix'
+        - 'bugfix'
+        - 'bug'
   - title: '🧰 Maintenance'
-    labels:
-      - 'chore'
-      - 'documentation'
-      - 'ci'
-      - 'refactor'
-      - 'style'
-      - 'test'
+    when:
+      labels:
+        - 'chore'
+        - 'documentation'
+        - 'ci'
+        - 'refactor'
+        - 'style'
+        - 'test'
   - title: '🔒 Security'
-    labels:
-      - 'dependencies'
-      - 'security'
+    when:
+      labels:
+        - 'dependencies'
+        - 'security'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 version-resolver:
   major:
-    labels:
-      - 'major'
-      - 'breaking'
+    when:
+      labels:
+        - 'major'
+        - 'breaking'
   minor:
-    labels:
-      - 'minor'
-      - 'refactor'
+    when:
+      labels:
+        - 'minor'
+        - 'refactor'
   patch:
-    labels:
-      - 'patch'
-      - 'documentation'
-      - 'ci'
-      - 'style'
-      - 'test'
+    when:
+      labels:
+        - 'patch'
+        - 'documentation'
+        - 'ci'
+        - 'style'
+        - 'test'
   default: patch
 autolabeler:
   - label: 'breaking'
