@@ -2,7 +2,7 @@
 package main
 
 import (
-	"github.com/mannemsolutions/pgroute66/internal/server"
+	"github.com/pgvillage-tools/pgroute66/internal/server"
 )
 
 func main() {

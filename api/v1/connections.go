@@ -3,8 +3,8 @@ package v1
 import (
 	"context"
 
-	"github.com/mannemsolutions/pgroute66/internal/logging"
-	"github.com/mannemsolutions/pgroute66/pkg/pg"
+	"github.com/pgvillage-tools/pgroute66/internal/logging"
+	"github.com/pgvillage-tools/pgroute66/pkg/pg"
 )
 
 // Connections is a map of connections per route

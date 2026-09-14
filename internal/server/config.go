@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	v1 "github.com/mannemsolutions/pgroute66/api/v1"
-	"github.com/mannemsolutions/pgroute66/internal/version"
+	v1 "github.com/pgvillage-tools/pgroute66/api/v1"
+	"github.com/pgvillage-tools/pgroute66/internal/version"
 	"gopkg.in/yaml.v2"
 )
 

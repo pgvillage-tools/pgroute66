@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"sort"
 
-	v1 "github.com/mannemsolutions/pgroute66/api/v1"
-	"github.com/mannemsolutions/pgroute66/pkg/pg"
+	v1 "github.com/pgvillage-tools/pgroute66/api/v1"
+	"github.com/pgvillage-tools/pgroute66/pkg/pg"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
