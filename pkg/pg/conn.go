@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"go.uber.org/zap"
+	"github.com/pgvillage-tools/pgroute66/internal/logging"
 )
 
 // Conn objects can connect to PostgreSQL and verify state
@@ -18,14 +18,12 @@ type Conn struct {
 	connParams Dsn
 	endpoint   string
 	conn       *pgxpool.Pool
-	logger     *zap.SugaredLogger
 }
 
 // NewConn can create a Conn object
-func NewConn(connParams Dsn, logger *zap.SugaredLogger) (c *Conn) {
+func NewConn(connParams Dsn) (c *Conn) {
 	c = &Conn{
 		connParams: connParams,
-		logger:     logger,
 	}
 	c.endpoint = fmt.Sprintf("%s:%s", c.Host(), c.Port())
 
@@ -36,6 +34,19 @@ func NewConn(connParams Dsn, logger *zap.SugaredLogger) (c *Conn) {
 func (c *Conn) DSN() (dsn string) {
 	pairs := make([]string, 0, len(c.connParams))
 	for key, value := range c.connParams {
+		pairs = append(pairs, fmt.Sprintf("%s=%s", key, connectStringValue(value)))
+	}
+
+	return strings.Join(pairs[:], " ")
+}
+
+// MaskedDSN returns a string value of the COnnection Parameters
+func (c *Conn) MaskedDSN() (dsn string) {
+	pairs := make([]string, 0, len(c.connParams))
+	for key, value := range c.connParams {
+		if key == "password" || key == "b64password" {
+			value = "*****"
+		}
 		pairs = append(pairs, fmt.Sprintf("%s=%s", key, connectStringValue(value)))
 	}
 
@@ -74,11 +85,12 @@ func (c *Conn) Port() string {
 
 // Connect can be used to actually connect the connection
 func (c *Conn) Connect(ctx context.Context) (err error) {
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	if c.conn != nil {
 		return nil
 	}
 
-	c.logger.Debugf("Connecting to %s (%v)", c.endpoint, c.DSN())
+	logger.Debug().Str("endpoint", c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
 
 	poolConfig, err := pgxpool.ParseConfig(c.DSN())
 	if err != nil {
@@ -96,7 +108,9 @@ func (c *Conn) Connect(ctx context.Context) (err error) {
 }
 
 func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (affected int64, err error) {
-	c.logger.Debugf("Running query `%s` on %s", query, c.endpoint)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	logger.Debug().Str("endpoint", c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
+	logger.Debug().Str("query", query).Str("endpoint", c.endpoint).Msg("Running query")
 
 	var ct pgconn.CommandTag
 
@@ -109,7 +123,8 @@ func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (aff
 }
 
 func (c *Conn) runQueryExists(ctx context.Context, query string, args ...any) (exists bool, err error) {
-	c.logger.Debugf("Running query `%s` on %s", query, c.endpoint)
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	logger.Debug().Str("query", query).Str("endpoint", c.endpoint).Msg("Running query")
 
 	err = c.Connect(ctx)
 	if err != nil {
@@ -120,10 +135,10 @@ func (c *Conn) runQueryExists(ctx context.Context, query string, args ...any) (e
 	err = c.conn.QueryRow(ctx, query, args...).Scan(&answer)
 
 	if err == nil {
-		c.logger.Debugf("Query `%s` returns rows for %s", query, c.endpoint)
+		logger.Debug().Str("query", query).Str("endpoint", c.endpoint).Msg("rows returned")
 		return true, nil
 	} else if err.Error() == pgx.ErrNoRows.Error() {
-		c.logger.Debugf("Query `%s` returns no rows for %s", query, c.endpoint)
+		logger.Debug().Str("query", query).Str("endpoint", c.endpoint).Msg("no rows returned")
 		return false, nil
 	}
 	return false, err
@@ -135,11 +150,12 @@ func (c *Conn) GetRows(
 	query string,
 	args ...any,
 ) ([]map[string]any, error) {
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	if err := c.Connect(ctx); err != nil {
 		return nil, err
 	}
 
-	c.logger.Debugf("Running SQL: %s with args %v", query, args)
+	logger.Debug().Str("query", query).Any("args", args).Msg("Running SQL")
 	result, err := c.conn.Query(ctx, query, args...)
 
 	if err != nil {

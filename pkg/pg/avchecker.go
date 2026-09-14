@@ -4,6 +4,8 @@ package pg
 import (
 	"context"
 	"fmt"
+
+	"github.com/pgvillage-tools/pgroute66/internal/logging"
 )
 
 const (
@@ -46,10 +48,11 @@ func (c *Conn) avcTableExists(ctx context.Context) (bool, error) {
 
 // AvcCreateTable is a query builder for the create statement of the AVC table
 func (c *Conn) AvcCreateTable(ctx context.Context) error {
-	c.logger.Infof("Creating table")
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
+	logger.Info().Msg("Creating table")
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
-		c.logger.Errorf("failed to check if table %s exists: %e", fullTableName(), err)
+		logger.Error().Str("table", fullTableName()).AnErr("error", err).Msg("failed to check if table exists")
 
 		return err
 	} else if exists {
@@ -71,11 +74,11 @@ func (c *Conn) AvcCreateTable(ctx context.Context) error {
 }
 
 func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	fullColName := identifierNameSQL(AvcColumn)
 
 	if exists, err := c.avcTableExists(ctx); err != nil {
-		c.logger.Errorf("failed to check if table %s exists: %e", fullTableName(), err)
-
+		logger.Error().Str("table", fullTableName()).AnErr("error", err).Msg("failed to check if table exists")
 		return 0, err
 	} else if !exists {
 		return -1, nil
@@ -85,7 +88,7 @@ func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
 	var mSec float64
 	var mSecOk bool
 	if result, err := c.GetRows(ctx, qry); err != nil {
-		c.logger.Errorf("failed to retrieve duration from postgres: %e", err)
+		logger.Error().AnErr("error", err).Msg("failed to retrieve duration from postgres")
 		return 0, err
 	} else if len(result) != 1 {
 		return 0, fmt.Errorf("unexpected result while checking for duration (%d != 1)", len(result))
@@ -99,13 +102,14 @@ func (c *Conn) avCheckerGetDuration(ctx context.Context) (float64, error) {
 
 // AvUpdateDuration can update the AVC column
 func (c *Conn) AvUpdateDuration(ctx context.Context) error {
+	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	var affected int64
 
 	if isPrimary, err := c.IsPrimary(ctx); err != nil {
 		return err
 	} else if !isPrimary {
-		c.logger.Infof("skipping update of %s on a standby database server", fullTableName())
-
+		logger.Info().Str("table", fullTableName()).
+			Msg("skipping update of %s on a standby database server")
 		return nil
 	} else if err = c.AvcCreateTable(ctx); err != nil {
 		return err
@@ -113,7 +117,7 @@ func (c *Conn) AvUpdateDuration(ctx context.Context) error {
 		fullTableName(), identifierNameSQL(AvcColumn))); err != nil {
 		return err
 	} else if affected != 1 {
-		return fmt.Errorf("unexpecetedly updated %d rows instead of 1 for %s", affected, fullTableName())
+		return fmt.Errorf("unexpectedly updated %d rows instead of 1 for %s", affected, fullTableName())
 	}
 
 	return nil

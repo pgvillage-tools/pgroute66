@@ -32,7 +32,7 @@ builds:
     main: ./cmd/pgroute66
     binary: pgroute66
     ldflags:
-      - -s -w -X "internal.appVersion={{.Version}}"
+      - -s -w -X "internal.version.appVersion={{.Version}}"
 
 archives:
   - format_overrides:

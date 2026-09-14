@@ -29,7 +29,7 @@ And thus [pgroute66](https://github.com/MannemSolutions/pgroute66) was born.
 ## Downloading pgroute66
 The most straight forward way is to download [pgroute66](https://github.com/MannemSolutions/pgroute66) directly from the [github release page](https://github.com/MannemSolutions/pgroute66/releases).
 But there are other options, like
-- using the [container image from dockerhub](https://hub.docker.com/repository/docker/mannemsolutions/pgroute66/general)
+- using the [container image from ghcr.io](https://github.com/pgvillage-tools/pgroute66/pkgs/container/pgroute66)
 - direct build from source (if you feel you must)
 
 Please refer to [our download instructions](DOWNLOAD_AND_RUN.md) for more details on all options.
@@ -71,7 +71,7 @@ port: 8443
 
 #ssl:
 #  # This should be a base64 encypted value of a certificate. Below is not a proper certificate, so you should generate one.
-#  # checkout chainsmith (https://hub.docker.com/r/mannemsolutions/chainsmith) for a nice and easy approach
+#  # checkout chainsmith (https://hub.docker.com/r/pgvillage-tools/chainsmith) for a nice and easy approach
 #  cert: LS0tLS1CRUdJTiBQUklWQVRFIEtFWS0tLS0tCk1JSUV2d0lCQURBTkJna3Foa2lHOXcwQkFRRUZBQVNDQktrd2dn
 #  # This should be a base64 encypted value of a certificate key. Below is not a proper key. 
 #  key: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQzakNDQXNZQ0NRRGZYZkhoanBCZHNEQU5CZ2txaGtpRzl

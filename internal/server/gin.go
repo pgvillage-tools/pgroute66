@@ -1,7 +1,8 @@
 // Package internal holds all unexported code
-package internal
+package server
 
 import (
+	"context"
 	"crypto/tls"
 	"log"
 	"net/http"
@@ -9,6 +10,8 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pgvillage-tools/pgroute66/internal/config"
+	"github.com/pgvillage-tools/pgroute66/internal/logging"
 )
 
 // RunAPI will run the gin webserver
@@ -17,9 +20,10 @@ func RunAPI() {
 
 	var cert tls.Certificate
 
+	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	Initialize()
 
-	if !globalHandler.config.Debug() {
+	if globalHandler.config.LogFile != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
@@ -30,14 +34,19 @@ func RunAPI() {
 	router.GET("/v1/:id/status", getStatus)
 	router.GET("/v1/:id/availability", getAvailability)
 
-	globalHandler.log.Debugf("Running on %s", globalHandler.config.BindTo())
+	logger.Debug().Str("binding to", globalHandler.config.BindTo()).Msg("")
 
 	if globalHandler.config.Ssl.Enabled() {
-		globalHandler.log.Debug("Running with SSL")
+		logger.Debug().Msg("Running with SSL")
 
-		cert, err = tls.X509KeyPair(globalHandler.config.Ssl.MustCertBytes(), globalHandler.config.Ssl.MustKeyBytes())
+		var keyBytes []byte
+		keyBytes, err = globalHandler.config.Ssl.KeyBytes()
 		if err != nil {
-			globalHandler.log.Fatal("Error parsing cert and key", err)
+			logger.Fatal().AnErr("error", err).Msg("Error parsing key bytes")
+		}
+		cert, err = tls.X509KeyPair(globalHandler.config.Ssl.MustCertBytes(), keyBytes)
+		if err != nil {
+			logger.Fatal().AnErr("error", err).Msg("Error parsing cert and key")
 		}
 
 		tlsConfig := tls.Config{
@@ -47,7 +56,7 @@ func RunAPI() {
 		server := http.Server{Addr: globalHandler.config.BindTo(), Handler: router, TLSConfig: &tlsConfig}
 		err = server.ListenAndServeTLS("", "")
 	} else {
-		globalHandler.log.Debug("Running without SSL")
+		logger.Debug().Msg("Running without SSL")
 		err = router.Run(globalHandler.config.BindTo())
 	}
 
@@ -57,7 +66,10 @@ func RunAPI() {
 }
 
 func getPrimary(c *gin.Context) {
-	primary := globalHandler.GetPrimaries(c.DefaultQuery("group", "all"))
+	primary := globalHandler.GetPrimaries(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup),
+	)
 	switch len(primary) {
 	case 0:
 		c.IndentedJSON(http.StatusNotFound, "")
@@ -70,19 +82,29 @@ func getPrimary(c *gin.Context) {
 
 // getPrimaries responds with the list of all albums as JSON.
 func getPrimaries(c *gin.Context) {
-	primaries := globalHandler.GetPrimaries(c.DefaultQuery("group", "all"))
+	primaries := globalHandler.GetPrimaries(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup),
+	)
 	c.IndentedJSON(http.StatusOK, primaries)
 }
 
 // getStandbys responds with the list of all albums as JSON.
 func getStandbys(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, globalHandler.GetStandbys(c.DefaultQuery("group", "all")))
+	c.IndentedJSON(http.StatusOK, globalHandler.GetStandbys(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup)),
+	)
 }
 
 func getStatus(c *gin.Context) {
 	id := c.Param("id")
 
-	status := globalHandler.GetNodeStatus(id)
+	status := globalHandler.GetNodeStatus(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup),
+		id,
+	)
 	switch status {
 	case ghStatusPrimary, ghStatusStandby:
 		c.IndentedJSON(http.StatusOK, status)
@@ -94,6 +116,7 @@ func getStatus(c *gin.Context) {
 }
 
 func getAvailability(c *gin.Context) {
+	_, logger := logging.GetLogComponent(context.Background(), logging.ServerComponent)
 	id := c.Param("id")
 
 	var limit float64
@@ -103,10 +126,15 @@ func getAvailability(c *gin.Context) {
 	if value := c.DefaultQuery("limit", "10"); value == "" {
 		limit = -1
 	} else if limit, err = strconv.ParseFloat(value, bitSize32); err != nil {
-		globalHandler.log.Errorf("invalid value for limit (%s is not an int32)", value)
+		logger.Error().Str("value", value).Msg("invalid value for limit (%s is not an int32)")
 	}
 
-	status := globalHandler.GetNodeAvailability(id, limit)
+	status := globalHandler.GetNodeAvailability(
+		c.Request.Context(),
+		c.DefaultQuery("group", config.DefaultHostGroup),
+		id,
+		limit,
+	)
 	if status == ghStatusOk {
 		c.IndentedJSON(http.StatusOK, status)
 	} else if strings.HasPrefix(status, "exceeded") {
