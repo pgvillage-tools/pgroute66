@@ -162,11 +162,17 @@ func (prh PgRouteHandler) UpdateNodeAvailability(ctx context.Context, group stri
 	}
 	for nodeName, conn := range nodes {
 		if isPrimary, err := conn.IsPrimary(ctx); err != nil {
-			logger.Debug().Str(logNodeKey, nodeName).AnErr(logErrorKey, err).Msg("failed to check if node %s is primary")
+			logger.Debug().
+				Str(logNodeKey, nodeName).
+				AnErr(logErrorKey, err).
+				Msg("failed to check if node %s is primary")
 		} else if !isPrimary {
 			continue
 		} else if err = conn.AvUpdateDuration(ctx); err != nil {
-			logger.Debug().Str(logNodeKey, nodeName).AnErr(logErrorKey, err).Msg("failed to update availability info on node")
+			logger.Debug().
+				Str(logNodeKey, nodeName).
+				AnErr(logErrorKey, err).
+				Msg("failed to update availability info on node")
 			return
 		} else {
 			logger.Info().Str(logNodeKey, nodeName).Msg("updating availability info on node")
@@ -188,11 +194,17 @@ func (prh PgRouteHandler) CreateAvailabilityTable(
 	}
 	for nodeName, conn := range nodes {
 		if isPrimary, err := conn.IsPrimary(ctx); err != nil {
-			logger.Debug().Str(logNodeKey, nodeName).AnErr(logErrorKey, err).Msg("failed to check if node %s is primary")
+			logger.Debug().
+				Str(logNodeKey, nodeName).
+				AnErr(logErrorKey, err).
+				Msg("failed to check if node %s is primary")
 		} else if !isPrimary {
 			continue
 		} else if err = conn.AvcCreateTable(ctx); err != nil {
-			logger.Debug().Str(logNodeKey, nodeName).AnErr(logErrorKey, err).Msg("failed to create availability table")
+			logger.Debug().
+				Str(logNodeKey, nodeName).
+				AnErr(logErrorKey, err).
+				Msg("failed to create availability table")
 			return
 		} else {
 			logger.Info().Str(logNodeKey, nodeName).Msg("creating availability table")
