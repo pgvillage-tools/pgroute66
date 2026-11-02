@@ -234,7 +234,10 @@ func (prh PgRouteHandler) GetNodeAvailability(ctx context.Context, group string,
 			logger.Info().Str(string(logNodeKey), name).Msg("availability of node %s is within limits")
 			return ghStatusOk
 		} else if aErr, ok := err.(pg.AvcDurationExceededError); ok {
-			logger.Info().Str(string(logNodeKey), name).AnErr(string(logErrorKey), err).Msg("Availability limit exceeded")
+			logger.Info().
+				Str(string(logNodeKey), name).
+				AnErr(string(logErrorKey), err).
+				Msg("Availability limit exceeded")
 			return fmt.Sprintf("exceeded (%s)", aErr.String())
 		}
 		logger.Info().Str(string(logNodeKey), name).AnErr(string(logErrorKey), err).
