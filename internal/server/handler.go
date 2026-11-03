@@ -20,14 +20,10 @@ const (
 	ghStatusUndefined   = "undefined"
 
 	groupMissingMsg = "groupNot defined in config"
-)
 
-type logKey string
-
-const (
-	logGroupKey logKey = "group"
-	logNodeKey  logKey = "node"
-	logErrorKey logKey = "error"
+	logGroupKey = "group"
+	logNodeKey  = "node"
+	logErrorKey = "error"
 )
 
 // PgRouteHandler handles all PostgreSQL connections for a route
@@ -60,7 +56,7 @@ func NewPgRouteHandler() *PgRouteHandler {
 
 	prh.config, err = config.NewConfig()
 	if err != nil {
-		logger.Fatal().AnErr(string(logErrorKey), err).Msg("Cannot parse config")
+		logger.Fatal().AnErr(logErrorKey, err).Msg("Cannot parse config")
 	}
 
 	for groupName, hosts := range prh.config.GetHostGroups() {
@@ -69,7 +65,7 @@ func NewPgRouteHandler() *PgRouteHandler {
 			if b64password, exists := dsn["b64password"]; exists {
 				sDec, err := base64.StdEncoding.DecodeString(b64password)
 				if err != nil {
-					logger.Panic().AnErr(string(logErrorKey), err).Str("b64password",
+					logger.Panic().AnErr(logErrorKey, err).Str("b64password",
 						b64password).Msg("Failed to decode b64password")
 				}
 				dsn["password"] = string(sDec)
@@ -87,7 +83,7 @@ func (prh PgRouteHandler) GetStandbys(ctx context.Context, group string) (standb
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	groupConnections, ok := prh.groupConns[group]
 	if !ok {
-		logger.Error().Str(string(logGroupKey), group).Msg(groupMissingMsg)
+		logger.Error().Str(logGroupKey, group).Msg(groupMissingMsg)
 		return nil
 	}
 	for name, conn := range groupConnections {
@@ -112,7 +108,7 @@ func (prh PgRouteHandler) GetPrimaries(ctx context.Context, group string) (prima
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	groupConnections, ok := prh.groupConns[group]
 	if !ok {
-		logger.Error().Str(string(logGroupKey), group).Msg(groupMissingMsg)
+		logger.Error().Str(logGroupKey, group).Msg(groupMissingMsg)
 		return nil
 	}
 	for name, conn := range groupConnections {
@@ -140,13 +136,13 @@ func (prh PgRouteHandler) GetNodeStatus(ctx context.Context, group string, name 
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	nodes, exists := prh.groupConns[group]
 	if !exists {
-		logger.Error().Str(string(logGroupKey), group).Msg(groupMissingMsg)
+		logger.Error().Str(logGroupKey, group).Msg(groupMissingMsg)
 		return ghStatusUndefined
 	}
 	if node, exists := nodes[name]; exists {
 		isPrimary, err := node.IsPrimary(ctx)
 		if err != nil {
-			logger.Debug().Str(string(logNodeKey), name).Msg("Could not get state of node")
+			logger.Debug().Str(logNodeKey, name).Msg("Could not get state of node")
 			return ghStatusUnavailable
 		} else if isPrimary {
 			return ghStatusPrimary
@@ -161,25 +157,25 @@ func (prh PgRouteHandler) UpdateNodeAvailability(ctx context.Context, group stri
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	nodes, exists := prh.groupConns[group]
 	if !exists {
-		logger.Error().Str(string(logGroupKey), group).Msg(groupMissingMsg)
+		logger.Error().Str(logGroupKey, group).Msg(groupMissingMsg)
 		return
 	}
 	for nodeName, conn := range nodes {
 		if isPrimary, err := conn.IsPrimary(ctx); err != nil {
 			logger.Debug().
-				Str(string(logNodeKey), nodeName).
-				AnErr(string(logErrorKey), err).
+				Str(logNodeKey, nodeName).
+				AnErr(logErrorKey, err).
 				Msg("failed to check if node %s is primary")
 		} else if !isPrimary {
 			continue
 		} else if err = conn.AvUpdateDuration(ctx); err != nil {
 			logger.Debug().
-				Str(string(logNodeKey), nodeName).
-				AnErr(string(logErrorKey), err).
+				Str(logNodeKey, nodeName).
+				AnErr(logErrorKey, err).
 				Msg("failed to update availability info on node")
 			return
 		} else {
-			logger.Info().Str(string(logNodeKey), nodeName).Msg("updating availability info on node")
+			logger.Info().Str(logNodeKey, nodeName).Msg("updating availability info on node")
 			return
 		}
 	}
@@ -193,25 +189,25 @@ func (prh PgRouteHandler) CreateAvailabilityTable(
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	nodes, exists := prh.groupConns[group]
 	if !exists {
-		logger.Error().Str(string(logGroupKey), group).Msg(groupMissingMsg)
+		logger.Error().Str(logGroupKey, group).Msg(groupMissingMsg)
 		return
 	}
 	for nodeName, conn := range nodes {
 		if isPrimary, err := conn.IsPrimary(ctx); err != nil {
 			logger.Debug().
-				Str(string(logNodeKey), nodeName).
-				AnErr(string(logErrorKey), err).
+				Str(logNodeKey, nodeName).
+				AnErr(logErrorKey, err).
 				Msg("failed to check if node %s is primary")
 		} else if !isPrimary {
 			continue
 		} else if err = conn.AvcCreateTable(ctx); err != nil {
 			logger.Debug().
-				Str(string(logNodeKey), nodeName).
-				AnErr(string(logErrorKey), err).
+				Str(logNodeKey, nodeName).
+				AnErr(logErrorKey, err).
 				Msg("failed to create availability table")
 			return
 		} else {
-			logger.Info().Str(string(logNodeKey), nodeName).Msg("creating availability table")
+			logger.Info().Str(logNodeKey, nodeName).Msg("creating availability table")
 			return
 		}
 	}
@@ -222,7 +218,7 @@ func (prh PgRouteHandler) GetNodeAvailability(ctx context.Context, group string,
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
 	nodes, exists := prh.groupConns[group]
 	if !exists {
-		logger.Error().Str(string(logGroupKey), group).Msg(groupMissingMsg)
+		logger.Error().Str(logGroupKey, group).Msg(groupMissingMsg)
 		return ""
 	}
 	prh.CreateAvailabilityTable(ctx, group)
@@ -231,16 +227,16 @@ func (prh PgRouteHandler) GetNodeAvailability(ctx context.Context, group string,
 	if node, exists := nodes[name]; exists {
 		err := node.AvCheckDuration(ctx, limit)
 		if err == nil {
-			logger.Info().Str(string(logNodeKey), name).Msg("availability of node %s is within limits")
+			logger.Info().Str(logNodeKey, name).Msg("availability of node %s is within limits")
 			return ghStatusOk
 		} else if aErr, ok := err.(pg.AvcDurationExceededError); ok {
 			logger.Info().
-				Str(string(logNodeKey), name).
-				AnErr(string(logErrorKey), err).
+				Str(logNodeKey, name).
+				AnErr(logErrorKey, err).
 				Msg("Availability limit exceeded")
 			return fmt.Sprintf("exceeded (%s)", aErr.String())
 		}
-		logger.Info().Str(string(logNodeKey), name).AnErr(string(logErrorKey), err).
+		logger.Info().Str(logNodeKey, name).AnErr(logErrorKey, err).
 			Msg("unexpected error occurred while retrieving availability")
 		return err.Error()
 	}

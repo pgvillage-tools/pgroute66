@@ -13,9 +13,7 @@ import (
 	"github.com/pgvillage-tools/pgroute66/internal/logging"
 )
 
-type logKey string
-
-const logEndpointKey logKey = "endpoint"
+const logEndpointKey = "endpoint"
 
 // Conn objects can connect to PostgreSQL and verify state
 type Conn struct {
@@ -94,7 +92,7 @@ func (c *Conn) Connect(ctx context.Context) (err error) {
 		return nil
 	}
 
-	logger.Debug().Str(string(logEndpointKey), c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
+	logger.Debug().Str(logEndpointKey, c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
 
 	poolConfig, err := pgxpool.ParseConfig(c.DSN())
 	if err != nil {
@@ -113,8 +111,8 @@ func (c *Conn) Connect(ctx context.Context) (err error) {
 
 func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (affected int64, err error) {
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
-	logger.Debug().Str(string(logEndpointKey), c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
-	logger.Debug().Str("query", query).Str(string(logEndpointKey), c.endpoint).Msg("Running query")
+	logger.Debug().Str(logEndpointKey, c.endpoint).Str("dsn", c.MaskedDSN()).Msg("connecting")
+	logger.Debug().Str("query", query).Str(logEndpointKey, c.endpoint).Msg("Running query")
 
 	var ct pgconn.CommandTag
 
@@ -128,7 +126,7 @@ func (c *Conn) runQueryExec(ctx context.Context, query string, args ...any) (aff
 
 func (c *Conn) runQueryExists(ctx context.Context, query string, args ...any) (exists bool, err error) {
 	ctx, logger := logging.GetLogComponent(ctx, logging.ServerComponent)
-	logger.Debug().Str("query", query).Str(string(logEndpointKey), c.endpoint).Msg("Running query")
+	logger.Debug().Str("query", query).Str(logEndpointKey, c.endpoint).Msg("Running query")
 
 	err = c.Connect(ctx)
 	if err != nil {
@@ -139,10 +137,10 @@ func (c *Conn) runQueryExists(ctx context.Context, query string, args ...any) (e
 	err = c.conn.QueryRow(ctx, query, args...).Scan(&answer)
 
 	if err == nil {
-		logger.Debug().Str("query", query).Str(string(logEndpointKey), c.endpoint).Msg("rows returned")
+		logger.Debug().Str("query", query).Str(logEndpointKey, c.endpoint).Msg("rows returned")
 		return true, nil
 	} else if err.Error() == pgx.ErrNoRows.Error() {
-		logger.Debug().Str("query", query).Str(string(logEndpointKey), c.endpoint).Msg("no rows returned")
+		logger.Debug().Str("query", query).Str(logEndpointKey, c.endpoint).Msg("no rows returned")
 		return false, nil
 	}
 	return false, err
