@@ -13,14 +13,14 @@ function assert() {
     echo "test${TST}: OK"
   else
     echo "test${TST}: ERROR: expected '${EXPECTED}', but got '${RESULT}'"
-    docker-compose logs pgroute66 postgres
+    docker compose logs pgroute66 postgres
     return 1
   fi
 }
 
 set -x
 set -e
-docker-compose version
+docker compose version
 echo "COMPOSE_COMPATIBILITY=$COMPOSE_COMPATIBILITY"
 
 if [ ! -f ./test/config.yaml ]; then
@@ -37,13 +37,13 @@ else
   echo "reusing existing ./test/config.yaml"
 fi
 
-docker-compose down && docker rmi pgroute66-postgres pgroute66-pgroute66  || echo new install
-docker-compose up -d --scale postgres=3
+docker compose down && docker rmi pgroute66-postgres pgroute66-pgroute66  || echo new install
+docker compose up -d --scale postgres=3
 for ((i=1;i<=3;i++)); do
   docker exec "pgroute66-postgres-${i}" /entrypoint.sh background
 done
 
-docker-compose up -d pgroute66
+docker compose up -d pgroute66
 docker ps -a
 assert primary '^host1$'
 assert primaries '^\[ host1 \]$'
